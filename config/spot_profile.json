@@ -1,0 +1,15 @@
+{
+  "location_name": "Noosa Heads, Noosa Shire, Queensland, 4567, Australia",
+  "lat": -26.40014,
+  "lon": 153.091049,
+  "beach_orientation_deg": 256.7,
+  "beach_orientation_text": "WSW",
+  "preferred_swell_dir_min": 217,
+  "preferred_swell_dir_max": 297,
+  "preferred_swell_min_m": 0.8,
+  "preferred_swell_max_m": 2.8,
+  "preferred_tide_min_m": null,
+  "preferred_tide_max_m": null,
+  "profile_method": "auto-derived",
+  "search_name": "Noosa Heads, Queensland, Australia"
+}

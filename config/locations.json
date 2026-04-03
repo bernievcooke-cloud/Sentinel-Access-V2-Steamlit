@@ -1,0 +1,381 @@
+{
+  "Alice Springs, NT": {
+    "display_name": "Alice Springs, NT",
+    "latitude": -23.6981,
+    "longitude": 133.8807,
+    "state": "NT"
+  },
+  "Bay of Fires, TAS": {
+    "display_name": "Bay of Fires, TAS",
+    "latitude": -41.1711,
+    "longitude": 148.2742,
+    "state": "TAS"
+  },
+  "Bells Beach, VIC": {
+    "display_name": "Bells Beach, VIC",
+    "latitude": -38.3706,
+    "longitude": 144.2833,
+    "state": "VIC"
+  },
+  "Bendigo city centre, Victoria": {
+    "latitude": -36.75698,
+    "longitude": 144.27957,
+    "state": "Victoria",
+    "source": "Open-Meteo geocoding",
+    "verified": true
+  },
+  "Birregurra": {
+    "display_name": "Birregurra",
+    "latitude": -38.33681,
+    "longitude": 143.78473,
+    "state": "VIC"
+  },
+  "Bondi Beach, NSW": {
+    "display_name": "Bondi Beach, NSW",
+    "latitude": -33.8908,
+    "longitude": 151.2743,
+    "state": "NSW"
+  },
+  "Broken Hill, NSW": {
+    "display_name": "Broken Hill, NSW",
+    "latitude": -31.9538,
+    "longitude": 141.4637,
+    "state": "NSW"
+  },
+  "Bruny Island, TAS": {
+    "display_name": "Bruny Island, TAS",
+    "latitude": -43.3322,
+    "longitude": 147.2516,
+    "state": "TAS"
+  },
+  "Bunya Mountains, QLD": {
+    "display_name": "Bunya Mountains, QLD",
+    "latitude": -26.8368,
+    "longitude": 151.5966,
+    "state": "QLD"
+  },
+  "Burleigh Heads, QLD": {
+    "display_name": "Burleigh Heads, QLD",
+    "latitude": -28.0873,
+    "longitude": 153.4538,
+    "state": "QLD"
+  },
+  "Byron Bay, NSW": {
+    "display_name": "Byron Bay, NSW",
+    "latitude": -28.6474,
+    "longitude": 153.6023,
+    "state": "NSW"
+  },
+  "Cactus Beach, SA": {
+    "display_name": "Cactus Beach, SA",
+    "latitude": -32.0835,
+    "longitude": 133.0046,
+    "state": "SA"
+  },
+  "Carnarvon Gorge, QLD": {
+    "display_name": "Carnarvon Gorge, QLD",
+    "latitude": -25.0639,
+    "longitude": 148.2317,
+    "state": "QLD"
+  },
+  "Clifton Beach, TAS": {
+    "display_name": "Clifton Beach, TAS",
+    "latitude": -42.9858,
+    "longitude": 147.4714,
+    "state": "TAS"
+  },
+  "Coober Pedy, SA": {
+    "display_name": "Coober Pedy, SA",
+    "latitude": -29.0135,
+    "longitude": 134.7544,
+    "state": "SA"
+  },
+  "Cottesloe, WA": {
+    "display_name": "Cottesloe, WA",
+    "latitude": -31.9953,
+    "longitude": 115.7518,
+    "state": "WA"
+  },
+  "Cradle Mountain, TAS": {
+    "display_name": "Cradle Mountain, TAS",
+    "latitude": -41.6854,
+    "longitude": 145.9229,
+    "state": "TAS"
+  },
+  "Cronulla, NSW": {
+    "display_name": "Cronulla, NSW",
+    "latitude": -34.0583,
+    "longitude": 151.1536,
+    "state": "NSW"
+  },
+  "Devils Marbles, NT": {
+    "display_name": "Devils Marbles, NT",
+    "latitude": -20.5517,
+    "longitude": 134.2632,
+    "state": "NT"
+  },
+  "Drouin, Victoria": {
+    "latitude": -38.13658,
+    "longitude": 145.85838,
+    "state": "Victoria",
+    "source": "Open-Meteo geocoding",
+    "verified": true
+  },
+  "Eaglehawk Neck, TAS": {
+    "display_name": "Eaglehawk Neck, TAS",
+    "latitude": -43.0177,
+    "longitude": 147.9253,
+    "state": "TAS"
+  },
+  "Eden, NSW": {
+    "display_name": "Eden, NSW",
+    "latitude": -37.0667,
+    "longitude": 149.9002,
+    "state": "NSW"
+  },
+  "Gnaraloo, WA": {
+    "display_name": "Gnaraloo, WA",
+    "latitude": -23.8212,
+    "longitude": 113.4755,
+    "state": "WA"
+  },
+  "Hallam, Victoria": {
+    "latitude": -38.01667,
+    "longitude": 145.26666,
+    "state": "Victoria",
+    "source": "Open-Meteo geocoding",
+    "verified": true
+  },
+  "Kangaroo Island, SA": {
+    "display_name": "Kangaroo Island, SA",
+    "latitude": -35.9841,
+    "longitude": 137.1999,
+    "state": "SA"
+  },
+  "Kirra Beach, QLD": {
+    "display_name": "Kirra Beach, QLD",
+    "latitude": -28.1672,
+    "longitude": 153.5312,
+    "state": "QLD"
+  },
+  "Lake Ballard, WA": {
+    "display_name": "Lake Ballard, WA",
+    "latitude": -29.4583,
+    "longitude": 121.2173,
+    "state": "WA"
+  },
+  "Lake Tyrrell, VIC": {
+    "display_name": "Lake Tyrrell, VIC",
+    "latitude": -35.3163,
+    "longitude": 142.7953,
+    "state": "VIC"
+  },
+  "Manly Beach, NSW": {
+    "display_name": "Manly Beach, NSW",
+    "latitude": -33.7974,
+    "longitude": 151.2873,
+    "state": "NSW"
+  },
+  "Margaret River, WA": {
+    "display_name": "Margaret River, WA",
+    "latitude": -33.9536,
+    "longitude": 115.0753,
+    "state": "WA"
+  },
+  "Meredith": {
+    "display_name": "Meredith",
+    "latitude": -37.84539,
+    "longitude": 144.07738,
+    "state": "VIC"
+  },
+  "Merimbula, New South Wales": {
+    "display_name": "Merimbula, New South Wales",
+    "latitude": -36.88901,
+    "longitude": 149.9096,
+    "state": "New South Wales",
+    "source": "Open-Meteo geocoding",
+    "verified": true
+  },
+  "Middleton, SA": {
+    "display_name": "Middleton, SA",
+    "latitude": -35.5112,
+    "longitude": 138.7115,
+    "state": "SA"
+  },
+  "Mount Buffalo, VIC": {
+    "display_name": "Mount Buffalo, VIC",
+    "latitude": -36.7213,
+    "longitude": 146.7752,
+    "state": "VIC"
+  },
+  "Mount Isa, QLD": {
+    "display_name": "Mount Isa, QLD",
+    "latitude": -20.7256,
+    "longitude": 139.4927,
+    "state": "QLD"
+  },
+  "Mount Wellington, TAS": {
+    "display_name": "Mount Wellington, TAS",
+    "latitude": -42.8952,
+    "longitude": 147.2372,
+    "state": "TAS"
+  },
+  "Mungo National Park, NSW": {
+    "display_name": "Mungo National Park, NSW",
+    "latitude": -33.7483,
+    "longitude": 143.0814,
+    "state": "NSW"
+  },
+  "Newcastle, NSW": {
+    "display_name": "Newcastle, NSW",
+    "latitude": -32.9272,
+    "longitude": 151.7789,
+    "state": "NSW"
+  },
+  "Nhulunbuy, NT": {
+    "display_name": "Nhulunbuy, NT",
+    "latitude": -12.180435,
+    "longitude": 136.775991,
+    "state": "NT",
+    "source": "OpenStreetMap Nominatim",
+    "verified": true
+  },
+  "Noosa Heads, QLD": {
+    "display_name": "Noosa Heads, QLD",
+    "latitude": -26.3821,
+    "longitude": 153.0955,
+    "state": "QLD"
+  },
+  "Parkes Radio Telescope, NSW": {
+    "display_name": "Parkes Radio Telescope, NSW",
+    "latitude": -32.9983,
+    "longitude": 148.2635,
+    "state": "NSW"
+  },
+  "Phillip Island, VIC": {
+    "display_name": "Phillip Island, VIC",
+    "latitude": -38.5024,
+    "longitude": 145.1481,
+    "state": "VIC"
+  },
+  "Point Leo, VIC": {
+    "display_name": "Point Leo, VIC",
+    "latitude": -38.4233,
+    "longitude": 145.0748,
+    "state": "VIC"
+  },
+  "Pondalowie, SA": {
+    "display_name": "Pondalowie, SA",
+    "latitude": -35.2342,
+    "longitude": 136.8373,
+    "state": "SA"
+  },
+  "Port Fairy, VIC": {
+    "display_name": "Port Fairy, VIC",
+    "latitude": -38.3842,
+    "longitude": 142.2353,
+    "state": "VIC"
+  },
+  "River Murray Dark Sky, SA": {
+    "display_name": "River Murray Dark Sky, SA",
+    "latitude": -34.6133,
+    "longitude": 139.5533,
+    "state": "SA"
+  },
+  "Roebuck Bay, WA": {
+    "display_name": "Roebuck Bay, WA",
+    "latitude": -17.9937,
+    "longitude": 122.3162,
+    "state": "WA"
+  },
+  "Shipstern Bluff, TAS": {
+    "display_name": "Shipstern Bluff, TAS",
+    "latitude": -43.2123,
+    "longitude": 147.8537,
+    "state": "TAS"
+  },
+  "Snapper Rocks, QLD": {
+    "display_name": "Snapper Rocks, QLD",
+    "latitude": -28.1633,
+    "longitude": 153.5515,
+    "state": "QLD"
+  },
+  "Sunshine Beach, QLD": {
+    "display_name": "Sunshine Beach, QLD",
+    "latitude": -26.3972,
+    "longitude": 153.1185,
+    "state": "QLD"
+  },
+  "The Pinnacles, WA": {
+    "display_name": "The Pinnacles, WA",
+    "latitude": -30.6043,
+    "longitude": 115.1572,
+    "state": "WA"
+  },
+  "Torquay, VIC": {
+    "display_name": "Torquay, VIC",
+    "latitude": -38.3333,
+    "longitude": 144.3165,
+    "state": "VIC"
+  },
+  "Trigg Point, WA": {
+    "display_name": "Trigg Point, WA",
+    "latitude": -31.8783,
+    "longitude": 115.7522,
+    "state": "WA"
+  },
+  "Twelve Apostles, VIC": {
+    "display_name": "Twelve Apostles, VIC",
+    "latitude": -38.6642,
+    "longitude": 143.1033,
+    "state": "VIC"
+  },
+  "Uluru, NT": {
+    "display_name": "Uluru, NT",
+    "latitude": -25.3444,
+    "longitude": 131.0369,
+    "state": "NT"
+  },
+  "Waitpinga, SA": {
+    "display_name": "Waitpinga, SA",
+    "latitude": -35.6323,
+    "longitude": 138.4843,
+    "state": "SA"
+  },
+  "Warrumbungle, NSW": {
+    "display_name": "Warrumbungle, NSW",
+    "latitude": -31.2753,
+    "longitude": 149.0007,
+    "state": "NSW"
+  },
+  "Wave Rock, WA": {
+    "display_name": "Wave Rock, WA",
+    "latitude": -32.4435,
+    "longitude": 118.8973,
+    "state": "WA"
+  },
+  "Whitsundays, QLD": {
+    "display_name": "Whitsundays, QLD",
+    "latitude": -20.2113,
+    "longitude": 148.9563,
+    "state": "QLD"
+  },
+  "Wilpena Pound, SA": {
+    "display_name": "Wilpena Pound, SA",
+    "latitude": -31.4983,
+    "longitude": 138.5633,
+    "state": "SA"
+  },
+  "Wilsons Prom, VIC": {
+    "display_name": "Wilsons Prom, VIC",
+    "latitude": -39.0223,
+    "longitude": 146.3313,
+    "state": "VIC"
+  },
+  "Yallingup, WA": {
+    "display_name": "Yallingup, WA",
+    "latitude": -33.6413,
+    "longitude": 115.0243,
+    "state": "WA"
+  }
+}

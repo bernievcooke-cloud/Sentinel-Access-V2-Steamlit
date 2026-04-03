@@ -1,0 +1,241 @@
+{
+  "AliceSprings": {
+    "display_name": "Alice Springs, NT",
+    "state": "NT"
+  },
+  "BayOfFires": {
+    "display_name": "Bay of Fires, TAS",
+    "state": "TAS"
+  },
+  "BellsBeach": {
+    "display_name": "Bells Beach, VIC",
+    "state": "VIC"
+  },
+  "Birregurra": {
+    "state": "VIC",
+    "surf_profile": {
+      "offshore_dir_ranges": [
+        [
+          290,
+          70
+        ]
+      ],
+      "max_wind_kmh": 28,
+      "swell_min": 0.9,
+      "swell_max": 3.8,
+      "tide_min": 1.1,
+      "notes": "auto"
+    },
+    "display_name": "Birregurra"
+  },
+  "BondiBeach": {
+    "display_name": "Bondi Beach, NSW",
+    "state": "NSW"
+  },
+  "BrokenHill": {
+    "display_name": "Broken Hill, NSW",
+    "state": "NSW"
+  },
+  "BrunyIsland": {
+    "display_name": "Bruny Island, TAS",
+    "state": "TAS"
+  },
+  "BunyaMountains": {
+    "display_name": "Bunya Mountains, QLD",
+    "state": "QLD"
+  },
+  "BurleighHeads": {
+    "display_name": "Burleigh Heads, QLD",
+    "state": "QLD"
+  },
+  "ByronBay": {
+    "display_name": "Byron Bay, NSW",
+    "state": "NSW"
+  },
+  "CactusBeach": {
+    "display_name": "Cactus Beach, SA",
+    "state": "SA"
+  },
+  "CarnarvonGorge": {
+    "display_name": "Carnarvon Gorge, QLD",
+    "state": "QLD"
+  },
+  "CliftonBeach": {
+    "display_name": "Clifton Beach, TAS",
+    "state": "TAS"
+  },
+  "CooberPedy": {
+    "display_name": "Coober Pedy, SA",
+    "state": "SA"
+  },
+  "Cottesloe": {
+    "display_name": "Cottesloe, WA",
+    "state": "WA"
+  },
+  "CradleMountain": {
+    "display_name": "Cradle Mountain, TAS",
+    "state": "TAS"
+  },
+  "Cronulla": {
+    "display_name": "Cronulla, NSW",
+    "state": "NSW"
+  },
+  "DevilsMarbles": {
+    "display_name": "Devils Marbles, NT",
+    "state": "NT"
+  },
+  "EaglehawkNeck": {
+    "display_name": "Eaglehawk Neck, TAS",
+    "state": "TAS"
+  },
+  "Gnaraloo": {
+    "display_name": "Gnaraloo, WA",
+    "state": "WA"
+  },
+  "KangarooIsland": {
+    "display_name": "Kangaroo Island, SA",
+    "state": "SA"
+  },
+  "KirraBeach": {
+    "display_name": "Kirra Beach, QLD",
+    "state": "QLD"
+  },
+  "LakeBallard": {
+    "display_name": "Lake Ballard, WA",
+    "state": "WA"
+  },
+  "LakeTyrrell": {
+    "display_name": "Lake Tyrrell, VIC",
+    "state": "VIC"
+  },
+  "ManlyBeach": {
+    "display_name": "Manly Beach, NSW",
+    "state": "NSW"
+  },
+  "MargaretRiver": {
+    "display_name": "Margaret River, WA",
+    "state": "WA"
+  },
+  "Middleton": {
+    "display_name": "Middleton, SA",
+    "state": "SA"
+  },
+  "MountBuffalo": {
+    "display_name": "Mount Buffalo, VIC",
+    "state": "VIC"
+  },
+  "MountIsA": {
+    "display_name": "Mount Isa, QLD",
+    "state": "QLD"
+  },
+  "MountWellington": {
+    "display_name": "Mount Wellington, TAS",
+    "state": "TAS"
+  },
+  "MungoNationalPark": {
+    "display_name": "Mungo National Park, NSW",
+    "state": "NSW"
+  },
+  "Newcastle": {
+    "display_name": "Newcastle, NSW",
+    "state": "NSW"
+  },
+  "Nhulunbuy": {
+    "display_name": "Nhulunbuy, NT",
+    "source": "OpenStreetMap Nominatim",
+    "state": "NT",
+    "verified": true
+  },
+  "NoosaHeads": {
+    "display_name": "Noosa Heads, QLD",
+    "state": "QLD"
+  },
+  "ParkesRadioScope": {
+    "display_name": "Parkes Radio Telescope, NSW",
+    "state": "NSW"
+  },
+  "PhillipIsland": {
+    "display_name": "Phillip Island, VIC",
+    "state": "VIC"
+  },
+  "PointLeo": {
+    "display_name": "Point Leo, VIC",
+    "state": "VIC"
+  },
+  "Pondalowie": {
+    "display_name": "Pondalowie, SA",
+    "state": "SA"
+  },
+  "PortFairy": {
+    "display_name": "Port Fairy, VIC",
+    "state": "VIC"
+  },
+  "RiverMurrayDarkSky": {
+    "display_name": "River Murray Dark Sky, SA",
+    "state": "SA"
+  },
+  "RoebuckBay": {
+    "display_name": "Roebuck Bay, WA",
+    "state": "WA"
+  },
+  "ShipsternBluff": {
+    "display_name": "Shipstern Bluff, TAS",
+    "state": "TAS"
+  },
+  "SnapperRocks": {
+    "display_name": "Snapper Rocks, QLD",
+    "state": "QLD"
+  },
+  "SunshineBeach": {
+    "display_name": "Sunshine Beach, QLD",
+    "state": "QLD"
+  },
+  "ThePinnacles": {
+    "display_name": "The Pinnacles, WA",
+    "state": "WA"
+  },
+  "Torquay": {
+    "display_name": "Torquay, VIC",
+    "state": "VIC"
+  },
+  "TriggPoint": {
+    "display_name": "Trigg Point, WA",
+    "state": "WA"
+  },
+  "TwelveApostles": {
+    "display_name": "Twelve Apostles, VIC",
+    "state": "VIC"
+  },
+  "Uluru": {
+    "display_name": "Uluru, NT",
+    "state": "NT"
+  },
+  "Waitpinga": {
+    "display_name": "Waitpinga, SA",
+    "state": "SA"
+  },
+  "Warrumbungle": {
+    "display_name": "Warrumbungle, NSW",
+    "state": "NSW"
+  },
+  "WaveRock": {
+    "display_name": "Wave Rock, WA",
+    "state": "WA"
+  },
+  "Whitsundays": {
+    "display_name": "Whitsundays, QLD",
+    "state": "QLD"
+  },
+  "WilpenaPound": {
+    "display_name": "Wilpena Pound, SA",
+    "state": "SA"
+  },
+  "WilsonsProm": {
+    "display_name": "Wilsons Prom, VIC",
+    "state": "VIC"
+  },
+  "Yallingup": {
+    "display_name": "Yallingup, WA",
+    "state": "WA"
+  }
+}
