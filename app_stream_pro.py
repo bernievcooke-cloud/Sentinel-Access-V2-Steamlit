@@ -239,7 +239,7 @@ def valid_output_files(items: Iterable[str]) -> list[str]:
     valid: list[str] = []
     for item in items:
         try:
-            path = Path(item)
+            path = Path(str(item))
             if not path.exists():
                 log_progress(f"Attachment path not found: {path}")
                 continue
@@ -249,14 +249,16 @@ def valid_output_files(items: Iterable[str]) -> list[str]:
             if path.suffix.lower() != ".pdf":
                 log_progress(f"Attachment ignored (not PDF): {path}")
                 continue
-            if path.stat().st_size <= 1000:
-                log_progress(f"Attachment too small: {path} ({path.stat().st_size} bytes)")
+            size = path.stat().st_size
+            if size <= 1000:
+                log_progress(f"Attachment too small: {path} ({size} bytes)")
                 continue
             valid.append(str(path))
         except Exception as exc:
             log_progress(f"Attachment validation error: {exc}")
             continue
     return valid
+
 
 
 def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> list[str]:
@@ -267,45 +269,55 @@ def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> l
     generate = getattr(mod, "generate_report")
     last_error: Exception | None = None
 
-    def newest_pdfs(limit_seconds: int = 180) -> list[str]:
+    def snapshot_pdfs() -> dict[str, tuple[float, int]]:
+        snap: dict[str, tuple[float, int]] = {}
         try:
-            now = datetime.now().timestamp()
-            candidates = []
+            OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
             for p in OUTPUTS_DIR.glob("*.pdf"):
                 try:
-                    if p.is_file() and p.stat().st_size > 1000:
-                        age = now - p.stat().st_mtime
-                        if age <= limit_seconds:
-                            candidates.append((p.stat().st_mtime, str(p)))
+                    stat = p.stat()
+                    snap[str(p.resolve())] = (stat.st_mtime, stat.st_size)
                 except Exception:
                     continue
-            candidates.sort(reverse=True)
-            return [path for _, path in candidates]
         except Exception:
-            return []
+            pass
+        return snap
 
     for args in call_variants:
+        before = snapshot_pdfs()
         try:
             result = generate(*args)
 
-            # 1) Normal path extraction from returned value
-            files = valid_output_files(file_list_from_result(result))
+            returned_paths = file_list_from_result(result)
+            files = valid_output_files(returned_paths)
             if files:
                 for f in files:
                     log_progress(f"{report_name} PDF OK: {f}")
                 return files
 
-            # 2) Fallback: worker may have written file to outputs/ without returning it cleanly
-            fallback_files = newest_pdfs()
-            if fallback_files:
-                for f in fallback_files:
-                    log_progress(f"{report_name} PDF OK (fallback): {f}")
-                return fallback_files
+            after = snapshot_pdfs()
+            changed: list[str] = []
+            for path_str, meta in after.items():
+                if path_str not in before or before[path_str] != meta:
+                    changed.append(path_str)
+            changed_files = valid_output_files(changed)
+            if changed_files:
+                for f in changed_files:
+                    log_progress(f"{report_name} PDF OK (detected in outputs): {f}")
+                return changed_files
 
-            maybe = file_list_from_result(result)
-            if maybe:
-                log_progress(f"{report_name} returned non-valid file paths: {maybe}")
+            recent_candidates = sorted(after.items(), key=lambda kv: kv[1][0], reverse=True)
+            recent_paths = [path_str for path_str, (_mtime, _size) in recent_candidates[:5]]
+            recent_files = valid_output_files(recent_paths)
+            if recent_files:
+                for f in recent_files:
+                    log_progress(f"{report_name} PDF OK (recent fallback): {f}")
+                return recent_files
 
+            if returned_paths:
+                log_progress(f"{report_name} returned paths but none were valid: {returned_paths}")
+            else:
+                log_progress(f"{report_name} returned no usable file paths.")
         except TypeError as exc:
             last_error = exc
             continue
@@ -317,6 +329,7 @@ def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> l
     if last_error:
         log_progress(f"{report_name} failed: {last_error}")
     return []
+
 
 
 def run_surf_report(location_name: str, lat: float, lon: float, loc_payload: dict[str, Any] | None) -> list[str]:
@@ -389,16 +402,14 @@ def send_reports_by_email(
 
     subject = f"Sentinel Access — {', '.join(report_labels)} — {location_summary}"
     body = (
-        f"Hello {recipient_name},\n\n"
+        f"Hello {recipient_name}\n\n"
         f"Your Sentinel Access report request is complete.\n\n"
         f"Reports: {', '.join(report_labels)}\n"
         f"Location: {location_summary}\n\n"
         f"Regards,\nSentinel Access"
     )
 
-    # Try the most likely signatures first
     candidates: list[tuple[str, tuple, dict]] = [
-        # Common wrapper styles
         ("send_email", (), {
             "recipient_name": recipient_name,
             "recipient_email": recipient_email,
@@ -425,8 +436,6 @@ def send_reports_by_email(
             "body": body,
             "attachments": file_paths,
         }),
-
-        # Report-specific wrappers
         ("send_report_email", (), {
             "recipient_name": recipient_name,
             "recipient_email": recipient_email,
@@ -453,8 +462,6 @@ def send_reports_by_email(
             "body": body,
             "attachments": file_paths,
         }),
-
-        # Positional fallbacks
         ("send_email", (recipient_name, recipient_email, subject, body, file_paths), {}),
         ("send_report_email", (recipient_name, recipient_email, subject, body, file_paths), {}),
         ("send_email", (recipient_email, subject, body, file_paths), {}),
@@ -485,49 +492,6 @@ def send_reports_by_email(
 
     return False, "Email sender found, but no compatible send function matched."
 
-    for func_name, args, kwargs in candidates:
-        fn = getattr(email_mod, func_name, None)
-        if not callable(fn):
-            continue
-        try:
-            result = fn(*args, **kwargs)
-            if result is False:
-                continue
-            return True, f"Email OK: sent to {recipient_email}"
-        except TypeError:
-            continue
-        except Exception as exc:
-            return False, f"Email ERROR: {exc}"
-
-    for func_name in ("send_report_email", "send_email"):
-        fn = getattr(email_mod, func_name, None)
-        if not callable(fn):
-            continue
-        try:
-            sig = inspect.signature(fn)
-            params = list(sig.parameters)
-            dynamic_kwargs: dict[str, Any] = {}
-            for name in params:
-                lname = name.lower()
-                if lname in {"recipient_email", "to_email", "email", "to"}:
-                    dynamic_kwargs[name] = recipient_email
-                elif lname == "subject":
-                    dynamic_kwargs[name] = subject
-                elif lname in {"body", "message", "content"}:
-                    dynamic_kwargs[name] = body
-                elif lname in {"attachments", "files", "file_paths"}:
-                    dynamic_kwargs[name] = file_paths
-                elif lname in {"recipient_name", "name", "user_name"}:
-                    dynamic_kwargs[name] = recipient_name
-            if dynamic_kwargs:
-                result = fn(**dynamic_kwargs)
-                if result is False:
-                    continue
-                return True, f"Email OK: sent to {recipient_email}"
-        except Exception as exc:
-            return False, f"Email ERROR: {exc}"
-
-    return False, "Email sender found, but no compatible send function matched."
 
 
 def init_state() -> None:
@@ -549,8 +513,8 @@ def premium_css() -> None:
         """
         <style>
         :root {
-            --sentinel-bg-1: #dde8f3;
-            --sentinel-bg-2: #edf4fb;
+            --sentinel-bg-1: #eef4fb;
+            --sentinel-bg-2: #f8fbff;
             --sentinel-card: rgba(255,255,255,0.90);
             --sentinel-card-strong: rgba(255,255,255,0.98);
             --sentinel-border: rgba(21,67,122,0.12);
@@ -626,8 +590,8 @@ def premium_css() -> None:
             border: 1px solid var(--sentinel-border);
             box-shadow: var(--sentinel-shadow);
             border-radius: 20px;
-            padding: 0.58rem 0.72rem 0.62rem 0.72rem;
-            min-height: 68px;
+            padding: 0.75rem 0.9rem 0.78rem 0.9rem;
+            min-height: 86px;
             backdrop-filter: blur(8px);
             position: relative;
             overflow: hidden;
@@ -654,7 +618,7 @@ def premium_css() -> None:
 
         .status-value {
             color: #16324f;
-            font-size: 0.88rem;
+            font-size: 0.95rem;
             font-weight: 800;
             line-height: 1.15;
             margin-bottom: 0.18rem;
@@ -662,7 +626,7 @@ def premium_css() -> None:
 
         .status-help {
             color: var(--sentinel-muted);
-            font-size: 0.74rem;
+            font-size: 0.79rem;
             line-height: 1.25;
         }
 
@@ -705,6 +669,14 @@ def premium_css() -> None:
             border: 1px solid rgba(21,67,122,0.16) !important;
             color: #16324f !important;
         }
+        div[data-baseweb="select"] > div {
+            background: #ffffff !important;
+            border: 1px solid rgba(21,67,122,0.16) !important;
+            min-height: 42px !important;
+        }
+        div[data-baseweb="select"] input {
+            color: #16324f !important;
+        }
 
         .stSelectbox label, .stMultiSelect label, .stTextInput label, .stNumberInput label, .stTextArea label {
             color: #36516b !important;
@@ -741,18 +713,18 @@ def premium_css() -> None:
         }
 
         .progress-caption {
-            color: #36516b;
+            color: #d8e5f9;
             font-weight: 700;
             font-size: 0.82rem;
             margin-bottom: 0.35rem;
         }
 
         .file-chip {
-            background: rgba(22,50,79,0.08);
-            color: #16324f;
+            background: rgba(255,255,255,0.08);
+            color: white;
             padding: 0.45rem 0.7rem;
             border-radius: 999px;
-            border: 1px solid rgba(21,67,122,0.14);
+            border: 1px solid rgba(255,255,255,0.11);
             display: inline-block;
             margin: 0.18rem 0.2rem 0.18rem 0;
             font-size: 0.78rem;
@@ -817,6 +789,12 @@ def hero_header() -> None:
         <div class="hero">
             <div class="hero-title">Sentinel Access Pro</div>
             <div class="hero-sub">Premium report generation and email delivery for surf, sky, weather, moon events, and trip planning.</div>
+            <div class="badge-row">
+                <div class="badge">Professional PDF delivery</div>
+                <div class="badge">Live system progress</div>
+                <div class="badge">Australia / Melbourne timezone</div>
+                <div class="badge">Location-aware reporting</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
