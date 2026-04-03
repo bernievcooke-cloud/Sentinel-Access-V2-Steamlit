@@ -41,10 +41,26 @@ CONFIG_DIR = ROOT_DIR / "config"
 LOCATIONS_FILE = CONFIG_DIR / "locations.json"
 OUTPUTS_DIR = ROOT_DIR / "outputs"
 DEFAULT_TZ = "Australia/Melbourne"
+PROGRESS_PLACEHOLDER = None
 
 
 def now_ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
+
+
+def render_progress_box() -> None:
+    global PROGRESS_PLACEHOLDER
+    if PROGRESS_PLACEHOLDER is not None:
+        try:
+            PROGRESS_PLACEHOLDER.text_area(
+                "System progress",
+                value=st.session_state.get("progress_log", ""),
+                height=360,
+                key="progress_view_live",
+                label_visibility="collapsed",
+            )
+        except Exception:
+            pass
 
 
 def log_progress(message: str) -> None:
@@ -52,6 +68,7 @@ def log_progress(message: str) -> None:
     current = st.session_state.get("progress_log", "")
     st.session_state["progress_log"] = f"{current}\n{line}".strip()
     st.session_state["last_status"] = message
+    render_progress_box()
 
 
 def soft_import(module_name: str):
@@ -239,26 +256,12 @@ def valid_output_files(items: Iterable[str]) -> list[str]:
     valid: list[str] = []
     for item in items:
         try:
-            path = Path(str(item))
-            if not path.exists():
-                log_progress(f"Attachment path not found: {path}")
-                continue
-            if not path.is_file():
-                log_progress(f"Attachment path is not a file: {path}")
-                continue
-            if path.suffix.lower() != ".pdf":
-                log_progress(f"Attachment ignored (not PDF): {path}")
-                continue
-            size = path.stat().st_size
-            if size <= 1000:
-                log_progress(f"Attachment too small: {path} ({size} bytes)")
-                continue
-            valid.append(str(path))
-        except Exception as exc:
-            log_progress(f"Attachment validation error: {exc}")
+            path = Path(item)
+            if path.exists() and path.is_file() and path.stat().st_size > 1000:
+                valid.append(str(path))
+        except Exception:
             continue
     return valid
-
 
 
 def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> list[str]:
@@ -269,55 +272,19 @@ def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> l
     generate = getattr(mod, "generate_report")
     last_error: Exception | None = None
 
-    def snapshot_pdfs() -> dict[str, tuple[float, int]]:
-        snap: dict[str, tuple[float, int]] = {}
-        try:
-            OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-            for p in OUTPUTS_DIR.glob("*.pdf"):
-                try:
-                    stat = p.stat()
-                    snap[str(p.resolve())] = (stat.st_mtime, stat.st_size)
-                except Exception:
-                    continue
-        except Exception:
-            pass
-        return snap
-
     for args in call_variants:
-        before = snapshot_pdfs()
         try:
             result = generate(*args)
-
-            returned_paths = file_list_from_result(result)
-            files = valid_output_files(returned_paths)
+            files = valid_output_files(file_list_from_result(result))
             if files:
                 for f in files:
                     log_progress(f"{report_name} PDF OK: {f}")
                 return files
-
-            after = snapshot_pdfs()
-            changed: list[str] = []
-            for path_str, meta in after.items():
-                if path_str not in before or before[path_str] != meta:
-                    changed.append(path_str)
-            changed_files = valid_output_files(changed)
-            if changed_files:
-                for f in changed_files:
-                    log_progress(f"{report_name} PDF OK (detected in outputs): {f}")
-                return changed_files
-
-            recent_candidates = sorted(after.items(), key=lambda kv: kv[1][0], reverse=True)
-            recent_paths = [path_str for path_str, (_mtime, _size) in recent_candidates[:5]]
-            recent_files = valid_output_files(recent_paths)
-            if recent_files:
-                for f in recent_files:
-                    log_progress(f"{report_name} PDF OK (recent fallback): {f}")
-                return recent_files
-
-            if returned_paths:
-                log_progress(f"{report_name} returned paths but none were valid: {returned_paths}")
-            else:
-                log_progress(f"{report_name} returned no usable file paths.")
+            maybe = file_list_from_result(result)
+            if maybe:
+                files = valid_output_files(maybe)
+                if files:
+                    return files
         except TypeError as exc:
             last_error = exc
             continue
@@ -329,7 +296,6 @@ def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> l
     if last_error:
         log_progress(f"{report_name} failed: {last_error}")
     return []
-
 
 
 def run_surf_report(location_name: str, lat: float, lon: float, loc_payload: dict[str, Any] | None) -> list[str]:
@@ -402,7 +368,7 @@ def send_reports_by_email(
 
     subject = f"Sentinel Access — {', '.join(report_labels)} — {location_summary}"
     body = (
-        f"Hello {recipient_name}\n\n"
+        f"Hello {recipient_name},\n\n"
         f"Your Sentinel Access report request is complete.\n\n"
         f"Reports: {', '.join(report_labels)}\n"
         f"Location: {location_summary}\n\n"
@@ -410,65 +376,27 @@ def send_reports_by_email(
     )
 
     candidates: list[tuple[str, tuple, dict]] = [
-        ("send_email", (), {
-            "recipient_name": recipient_name,
-            "recipient_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_email", (), {
-            "user_name": recipient_name,
-            "user_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_email", (), {
-            "to_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_email", (), {
-            "recipient_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_report_email", (), {
-            "recipient_name": recipient_name,
-            "recipient_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_report_email", (), {
-            "user_name": recipient_name,
-            "user_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_report_email", (), {
-            "to_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_report_email", (), {
-            "recipient_email": recipient_email,
-            "subject": subject,
-            "body": body,
-            "attachments": file_paths,
-        }),
-        ("send_email", (recipient_name, recipient_email, subject, body, file_paths), {}),
-        ("send_report_email", (recipient_name, recipient_email, subject, body, file_paths), {}),
-        ("send_email", (recipient_email, subject, body, file_paths), {}),
         ("send_report_email", (recipient_email, subject, body, file_paths), {}),
+        ("send_report_email", (), {
+            "recipient_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
+        ("send_email", (recipient_email, subject, body, file_paths), {}),
+        ("send_email", (), {
+            "recipient_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
+        ("send_email", (), {
+            "to_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
     ]
-
-    errors: list[str] = []
 
     for func_name, args, kwargs in candidates:
         fn = getattr(email_mod, func_name, None)
@@ -477,21 +405,14 @@ def send_reports_by_email(
         try:
             result = fn(*args, **kwargs)
             if result is False:
-                errors.append(f"{func_name} returned False")
                 continue
             return True, f"Email OK: sent to {recipient_email}"
-        except TypeError as exc:
-            errors.append(f"{func_name} TypeError: {exc}")
+        except TypeError:
             continue
         except Exception as exc:
-            errors.append(f"{func_name} ERROR: {exc}")
-            continue
-
-    if errors:
-        return False, "Email ERROR: " + " | ".join(errors[:3])
+            return False, f"Email ERROR: {exc}"
 
     return False, "Email sender found, but no compatible send function matched."
-
 
 
 def init_state() -> None:
@@ -503,6 +424,7 @@ def init_state() -> None:
         "geo_matches": [],
         "geo_message": "",
         "saved_location_notice": "",
+        "report_picker": None,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -513,8 +435,8 @@ def premium_css() -> None:
         """
         <style>
         :root {
-            --sentinel-bg-1: #eef4fb;
-            --sentinel-bg-2: #f8fbff;
+            --sentinel-bg-1: #dfe8f3;
+            --sentinel-bg-2: #edf3f9;
             --sentinel-card: rgba(255,255,255,0.90);
             --sentinel-card-strong: rgba(255,255,255,0.98);
             --sentinel-border: rgba(21,67,122,0.12);
@@ -590,8 +512,8 @@ def premium_css() -> None:
             border: 1px solid var(--sentinel-border);
             box-shadow: var(--sentinel-shadow);
             border-radius: 20px;
-            padding: 0.75rem 0.9rem 0.78rem 0.9rem;
-            min-height: 86px;
+            padding: 0.56rem 0.72rem 0.6rem 0.72rem;
+            min-height: 72px;
             backdrop-filter: blur(8px);
             position: relative;
             overflow: hidden;
@@ -667,14 +589,6 @@ def premium_css() -> None:
             border-radius: 12px !important;
             background: #ffffff !important;
             border: 1px solid rgba(21,67,122,0.16) !important;
-            color: #16324f !important;
-        }
-        div[data-baseweb="select"] > div {
-            background: #ffffff !important;
-            border: 1px solid rgba(21,67,122,0.16) !important;
-            min-height: 42px !important;
-        }
-        div[data-baseweb="select"] input {
             color: #16324f !important;
         }
 
@@ -789,12 +703,6 @@ def hero_header() -> None:
         <div class="hero">
             <div class="hero-title">Sentinel Access Pro</div>
             <div class="hero-sub">Premium report generation and email delivery for surf, sky, weather, moon events, and trip planning.</div>
-            <div class="badge-row">
-                <div class="badge">Professional PDF delivery</div>
-                <div class="badge">Live system progress</div>
-                <div class="badge">Australia / Melbourne timezone</div>
-                <div class="badge">Location-aware reporting</div>
-            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -839,9 +747,26 @@ def render_status_cards(report_count: int, ready: bool) -> None:
         )
 
 
+
+def add_selected_report(report_name: str | None) -> None:
+    if not report_name:
+        return
+    current = list(st.session_state.get("selected_reports", []))
+    if report_name not in current:
+        current.append(report_name)
+        st.session_state["selected_reports"] = current
+    st.session_state["report_picker"] = None
+
+
+def remove_selected_report(report_name: str) -> None:
+    current = [r for r in st.session_state.get("selected_reports", []) if r != report_name]
+    st.session_state["selected_reports"] = current
+
+
 def run_generation(recipient_name: str, recipient_email: str, selected_reports: list[str], selected_locations: dict[str, str], trip_payload: dict[str, Any]) -> None:
     st.session_state["generated_files"] = []
     st.session_state["email_status"] = ""
+    st.session_state["progress_log"] = ""
     log_progress("RUN START ✅")
     log_progress("Starting report generation.")
 
@@ -896,6 +821,10 @@ def run_generation(recipient_name: str, recipient_email: str, selected_reports: 
         if f not in unique_files:
             unique_files.append(f)
     st.session_state["generated_files"] = unique_files
+    if unique_files:
+        log_progress(f"Valid PDF attachments found: {len(unique_files)}")
+        for fp in unique_files:
+            log_progress(f"Attachment ready: {fp}")
 
     if not unique_files:
         log_progress("No valid PDF attachments were generated.")
@@ -932,6 +861,7 @@ def main() -> None:
 
     left, middle, right = st.columns(3, gap="medium")
 
+
     with left:
         section_open("User Details", "Enter your details. Press Enter after typing name or email.")
         recipient_name = st.text_input("Name", key="recipient_name", placeholder="Your name")
@@ -944,6 +874,82 @@ def main() -> None:
         st.link_button("Back to website", back_url, use_container_width=True)
         section_close()
 
+    with middle:
+        section_open("Select Reports & Locations", "Choose reports one at a time, then add them to the run list.")
+        pick_left, pick_right = st.columns([3, 1], gap="small")
+        with pick_left:
+            report_to_add = st.selectbox(
+                "Select report type",
+                options=REPORT_OPTIONS,
+                index=None,
+                placeholder="Choose report type",
+                key="report_picker",
+            )
+        with pick_right:
+            st.markdown("<div style='height: 1.8rem;'></div>", unsafe_allow_html=True)
+            if st.button("Add report", key="add_report_btn", use_container_width=True):
+                add_selected_report(report_to_add)
+                st.rerun()
+
+        selected_reports = st.session_state.get("selected_reports", [])
+        if selected_reports:
+            st.markdown("**Selected reports**")
+            for report in list(selected_reports):
+                chip_col, remove_col = st.columns([4, 1], gap="small")
+                with chip_col:
+                    st.markdown(f'<div class="file-chip">{report}</div>', unsafe_allow_html=True)
+                with remove_col:
+                    if st.button("Remove", key=f"remove_{report}", use_container_width=True):
+                        remove_selected_report(report)
+                        st.rerun()
+
+        selected_locations: dict[str, str] = {}
+        for report in selected_reports:
+            if report == "Trip Report":
+                continue
+            selected_locations[report] = st.selectbox(
+                f"{report} location",
+                options=location_names,
+                index=None,
+                placeholder="Choose location",
+                key=f"loc_{report}",
+            )
+
+        trip_payload: dict[str, Any] = {}
+        if "Trip Report" in selected_reports:
+            st.markdown("---")
+            st.markdown("**Trip Planner**")
+            trip_payload["start_location"] = st.selectbox("Start location", options=location_names, index=None, placeholder="Choose start location", key="trip_start_location")
+            trip_payload["destination_1"] = st.selectbox("Destination 1", options=location_names, index=None, placeholder="Choose first destination", key="trip_destination_1")
+            trip_payload["destination_2"] = st.selectbox("Destination 2", options=location_names, index=None, placeholder="Choose second destination", key="trip_destination_2")
+            trip_payload["destination_3"] = st.selectbox("Destination 3", options=location_names, index=None, placeholder="Choose third destination", key="trip_destination_3")
+            fuel_left, fuel_right = st.columns(2, gap="small")
+            with fuel_left:
+                trip_payload["fuel_type"] = st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type")
+            with fuel_right:
+                fuel_prices = [f"${x/100:.2f}" for x in range(140, 401, 5)]
+                trip_payload["fuel_price_per_litre"] = st.selectbox("Fuel price / litre", fuel_prices, index=fuel_prices.index("$1.90") if "$1.90" in fuel_prices else 0, key="trip_fuel_price")
+
+        generate_ready = bool(recipient_name.strip() and recipient_email.strip() and selected_reports)
+        if any(r != "Trip Report" for r in selected_reports):
+            non_trip_ok = all(selected_locations.get(r) for r in selected_reports if r != "Trip Report")
+            generate_ready = generate_ready and non_trip_ok
+        if "Trip Report" in selected_reports:
+            generate_ready = generate_ready and bool(trip_payload.get("start_location"))
+
+        gen_col, clear_col = st.columns(2, gap="small")
+        with gen_col:
+            if st.button("Generate & Email Reports", key="generate_reports_btn", disabled=not generate_ready):
+                run_generation(recipient_name, recipient_email, selected_reports, selected_locations, trip_payload)
+        with clear_col:
+            if st.button("Clear progress", key="clear_progress_btn"):
+                st.session_state["progress_log"] = f"[{now_ts()}] Progress cleared"
+                st.session_state["generated_files"] = []
+                st.session_state["email_status"] = ""
+                st.session_state["last_status"] = "Progress cleared"
+                render_progress_box()
+
+        st.markdown("---")
         section_open("Add New Location", "Search an Australian place, then save the match to locations.json.")
         new_location_name = st.text_input("Location name", key="new_location_name", placeholder="e.g. Anglesea")
         new_location_state = st.selectbox("State", options=STATE_OPTIONS, key="new_location_state")
@@ -964,13 +970,7 @@ def main() -> None:
         ]
         chosen_match_label = None
         if match_labels:
-            chosen_match_label = st.selectbox(
-                "Geocoding matches",
-                options=match_labels,
-                index=None,
-                placeholder="Choose a match to save",
-                key="chosen_match_label",
-            )
+            chosen_match_label = st.selectbox("Geocoding matches", options=match_labels, index=None, placeholder="Choose a match to save", key="chosen_match_label")
 
         with save_col:
             if st.button("Save location", key="save_location_btn"):
@@ -999,102 +999,14 @@ def main() -> None:
             box_cls = "success-box" if "Saved " in st.session_state["saved_location_notice"] else "info-box"
             st.markdown(f'<div class="{box_cls}">{st.session_state["saved_location_notice"]}</div>', unsafe_allow_html=True)
         section_close()
-
-    with middle:
-        section_open("Select Reports & Locations", "Choose one or more reports. Each selected report can use its own location.")
-        selected_reports = st.multiselect(
-            "Reports",
-            options=REPORT_OPTIONS,
-            key="selected_reports",
-            placeholder="Choose report types",
-        )
-
-        selected_locations: dict[str, str] = {}
-        for report in selected_reports:
-            if report == "Trip Report":
-                continue
-            selected_locations[report] = st.selectbox(
-                f"{report} location",
-                options=location_names,
-                index=None,
-                placeholder="Choose location",
-                key=f"loc_{report}",
-            )
-
-        trip_payload: dict[str, Any] = {}
-        if "Trip Report" in selected_reports:
-            st.markdown("---")
-            st.markdown("**Trip Planner**")
-            trip_payload["start_location"] = st.selectbox(
-                "Start location",
-                options=location_names,
-                index=None,
-                placeholder="Choose start location",
-                key="trip_start_location",
-            )
-            trip_payload["destination_1"] = st.selectbox(
-                "Destination 1",
-                options=location_names,
-                index=None,
-                placeholder="Choose first destination",
-                key="trip_destination_1",
-            )
-            trip_payload["destination_2"] = st.selectbox(
-                "Destination 2",
-                options=location_names,
-                index=None,
-                placeholder="Choose second destination",
-                key="trip_destination_2",
-            )
-            trip_payload["destination_3"] = st.selectbox(
-                "Destination 3",
-                options=location_names,
-                index=None,
-                placeholder="Choose third destination",
-                key="trip_destination_3",
-            )
-            fuel_left, fuel_right = st.columns(2, gap="small")
-            with fuel_left:
-                trip_payload["fuel_type"] = st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type")
-            with fuel_right:
-                fuel_prices = [f"${x/100:.2f}" for x in range(140, 401, 5)]
-                trip_payload["fuel_price_per_litre"] = st.selectbox(
-                    "Fuel price / litre",
-                    fuel_prices,
-                    index=fuel_prices.index("$1.90") if "$1.90" in fuel_prices else 0,
-                    key="trip_fuel_price",
-                )
-
-        generate_ready = bool(recipient_name.strip() and recipient_email.strip() and selected_reports)
-        if any(r != "Trip Report" for r in selected_reports):
-            non_trip_ok = all(selected_locations.get(r) for r in selected_reports if r != "Trip Report")
-            generate_ready = generate_ready and non_trip_ok
-        if "Trip Report" in selected_reports:
-            generate_ready = generate_ready and bool(trip_payload.get("start_location"))
-
-        gen_col, clear_col = st.columns(2, gap="small")
-        with gen_col:
-            if st.button("Generate & Email Reports", key="generate_reports_btn", disabled=not generate_ready):
-                run_generation(recipient_name, recipient_email, selected_reports, selected_locations, trip_payload)
-        with clear_col:
-            if st.button("Clear progress", key="clear_progress_btn"):
-                st.session_state["progress_log"] = f"[{now_ts()}] Progress cleared"
-                st.session_state["generated_files"] = []
-                st.session_state["email_status"] = ""
-                st.session_state["last_status"] = "Progress cleared"
-
         section_close()
 
     with right:
         section_open("Live System Progress", "The full run log remains visible while the app is running.")
         st.markdown('<div class="progress-caption">System progress</div>', unsafe_allow_html=True)
-        st.text_area(
-            "System progress",
-            value=st.session_state.get("progress_log", ""),
-            height=360,
-            key="progress_view",
-            label_visibility="collapsed",
-        )
+        global PROGRESS_PLACEHOLDER
+        PROGRESS_PLACEHOLDER = st.empty()
+        render_progress_box()
 
         if st.session_state.get("email_status"):
             box_cls = "success-box" if "Email OK" in st.session_state["email_status"] else "info-box"
@@ -1106,6 +1018,7 @@ def main() -> None:
             for file_path in files:
                 st.markdown(f'<div class="file-chip">{Path(file_path).name}</div>', unsafe_allow_html=True)
         section_close()
+
 
 
 if __name__ == "__main__":
