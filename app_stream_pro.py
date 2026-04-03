@@ -240,9 +240,21 @@ def valid_output_files(items: Iterable[str]) -> list[str]:
     for item in items:
         try:
             path = Path(item)
-            if path.exists() and path.is_file() and path.stat().st_size > 1000:
-                valid.append(str(path))
-        except Exception:
+            if not path.exists():
+                log_progress(f"Attachment path not found: {path}")
+                continue
+            if not path.is_file():
+                log_progress(f"Attachment path is not a file: {path}")
+                continue
+            if path.suffix.lower() != ".pdf":
+                log_progress(f"Attachment ignored (not PDF): {path}")
+                continue
+            if path.stat().st_size <= 1000:
+                log_progress(f"Attachment too small: {path} ({path.stat().st_size} bytes)")
+                continue
+            valid.append(str(path))
+        except Exception as exc:
+            log_progress(f"Attachment validation error: {exc}")
             continue
     return valid
 
@@ -255,19 +267,45 @@ def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> l
     generate = getattr(mod, "generate_report")
     last_error: Exception | None = None
 
+    def newest_pdfs(limit_seconds: int = 180) -> list[str]:
+        try:
+            now = datetime.now().timestamp()
+            candidates = []
+            for p in OUTPUTS_DIR.glob("*.pdf"):
+                try:
+                    if p.is_file() and p.stat().st_size > 1000:
+                        age = now - p.stat().st_mtime
+                        if age <= limit_seconds:
+                            candidates.append((p.stat().st_mtime, str(p)))
+                except Exception:
+                    continue
+            candidates.sort(reverse=True)
+            return [path for _, path in candidates]
+        except Exception:
+            return []
+
     for args in call_variants:
         try:
             result = generate(*args)
+
+            # 1) Normal path extraction from returned value
             files = valid_output_files(file_list_from_result(result))
             if files:
                 for f in files:
                     log_progress(f"{report_name} PDF OK: {f}")
                 return files
+
+            # 2) Fallback: worker may have written file to outputs/ without returning it cleanly
+            fallback_files = newest_pdfs()
+            if fallback_files:
+                for f in fallback_files:
+                    log_progress(f"{report_name} PDF OK (fallback): {f}")
+                return fallback_files
+
             maybe = file_list_from_result(result)
             if maybe:
-                files = valid_output_files(maybe)
-                if files:
-                    return files
+                log_progress(f"{report_name} returned non-valid file paths: {maybe}")
+
         except TypeError as exc:
             last_error = exc
             continue
