@@ -358,17 +358,19 @@ def send_reports_by_email(
         f"Regards,\nSentinel Access"
     )
 
+    # Try the most likely signatures first
     candidates: list[tuple[str, tuple, dict]] = [
-        ("send_report_email", (recipient_email, subject, body, file_paths), {}),
-        ("send_report_email", (), {
+        # Common wrapper styles
+        ("send_email", (), {
+            "recipient_name": recipient_name,
             "recipient_email": recipient_email,
             "subject": subject,
             "body": body,
             "attachments": file_paths,
         }),
-        ("send_email", (recipient_email, subject, body, file_paths), {}),
         ("send_email", (), {
-            "recipient_email": recipient_email,
+            "user_name": recipient_name,
+            "user_email": recipient_email,
             "subject": subject,
             "body": body,
             "attachments": file_paths,
@@ -379,7 +381,71 @@ def send_reports_by_email(
             "body": body,
             "attachments": file_paths,
         }),
+        ("send_email", (), {
+            "recipient_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
+
+        # Report-specific wrappers
+        ("send_report_email", (), {
+            "recipient_name": recipient_name,
+            "recipient_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
+        ("send_report_email", (), {
+            "user_name": recipient_name,
+            "user_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
+        ("send_report_email", (), {
+            "to_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
+        ("send_report_email", (), {
+            "recipient_email": recipient_email,
+            "subject": subject,
+            "body": body,
+            "attachments": file_paths,
+        }),
+
+        # Positional fallbacks
+        ("send_email", (recipient_name, recipient_email, subject, body, file_paths), {}),
+        ("send_report_email", (recipient_name, recipient_email, subject, body, file_paths), {}),
+        ("send_email", (recipient_email, subject, body, file_paths), {}),
+        ("send_report_email", (recipient_email, subject, body, file_paths), {}),
     ]
+
+    errors: list[str] = []
+
+    for func_name, args, kwargs in candidates:
+        fn = getattr(email_mod, func_name, None)
+        if not callable(fn):
+            continue
+        try:
+            result = fn(*args, **kwargs)
+            if result is False:
+                errors.append(f"{func_name} returned False")
+                continue
+            return True, f"Email OK: sent to {recipient_email}"
+        except TypeError as exc:
+            errors.append(f"{func_name} TypeError: {exc}")
+            continue
+        except Exception as exc:
+            errors.append(f"{func_name} ERROR: {exc}")
+            continue
+
+    if errors:
+        return False, "Email ERROR: " + " | ".join(errors[:3])
+
+    return False, "Email sender found, but no compatible send function matched."
 
     for func_name, args, kwargs in candidates:
         fn = getattr(email_mod, func_name, None)
