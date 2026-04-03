@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from **future** import annotations
+from future import annotations
 
 import json
 import os
