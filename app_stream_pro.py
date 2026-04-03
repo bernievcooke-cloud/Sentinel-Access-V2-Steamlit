@@ -298,7 +298,8 @@ def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> l
         except Exception as exc:
             last_error = exc
             log_progress(f"{report_name} failed: {exc}")
-            break        except Exception as exc:
+            break        
+        except Exception as exc:
             last_error = exc
             log_progress(f"{report_name} attempt failed: {exc}")
             continue
