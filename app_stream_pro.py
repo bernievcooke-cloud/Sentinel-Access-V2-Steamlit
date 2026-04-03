@@ -298,7 +298,10 @@ def call_generate_report(mod, call_variants: list[tuple], report_name: str) -> l
         except Exception as exc:
             last_error = exc
             log_progress(f"{report_name} failed: {exc}")
-            break
+            break        except Exception as exc:
+            last_error = exc
+            log_progress(f"{report_name} attempt failed: {exc}")
+            continue
 
     if last_error:
         log_progress(f"{report_name} failed: {last_error}")
@@ -343,13 +346,96 @@ def run_moon_report(location_name: str, lat: float, lon: float) -> list[str]:
 
 def run_weather_report(location_name: str, lat: float, lon: float) -> list[str]:
     mod = import_worker("core.weather_worker")
-    variants = [
-        (location_name, [lat, lon], str(OUTPUTS_DIR), log_progress),
-        (location_name, [lat, lon], str(OUTPUTS_DIR)),
-        (location_name, lat, lon, str(OUTPUTS_DIR), log_progress),
-        (location_name, lat, lon, str(OUTPUTS_DIR)),
+    if not mod or not hasattr(mod, "generate_report"):
+        log_progress("Weather Report worker not available.")
+        return []
+
+    generate = getattr(mod, "generate_report")
+    last_error: Exception | None = None
+
+    attempts = [
+        # keyword-first attempts
+        {"args": (location_name, [lat, lon]), "kwargs": {"output_dir": str(OUTPUTS_DIR), "logger": log_progress}},
+        {"args": (location_name, [lat, lon]), "kwargs": {"logger": log_progress, "output_dir": str(OUTPUTS_DIR)}},
+        {"args": (location_name, lat, lon), "kwargs": {"output_dir": str(OUTPUTS_DIR), "logger": log_progress}},
+        {"args": (location_name, lat, lon), "kwargs": {"logger": log_progress, "output_dir": str(OUTPUTS_DIR)}},
+
+        # logger as 3rd positional
+        {"args": (location_name, [lat, lon], log_progress), "kwargs": {}},
+        {"args": (location_name, lat, lon, log_progress), "kwargs": {}},
+
+        # output_dir as 3rd positional, logger kw
+        {"args": (location_name, [lat, lon], str(OUTPUTS_DIR)), "kwargs": {"logger": log_progress}},
+        {"args": (location_name, lat, lon, str(OUTPUTS_DIR)), "kwargs": {"logger": log_progress}},
+
+        # fully positional fallbacks
+        {"args": (location_name, [lat, lon], str(OUTPUTS_DIR), log_progress), "kwargs": {}},
+        {"args": (location_name, lat, lon, str(OUTPUTS_DIR), log_progress), "kwargs": {}},
+        {"args": (location_name, [lat, lon], str(OUTPUTS_DIR)), "kwargs": {}},
+        {"args": (location_name, lat, lon, str(OUTPUTS_DIR)), "kwargs": {}},
+        {"args": (location_name, [lat, lon]), "kwargs": {}},
+        {"args": (location_name, lat, lon), "kwargs": {}},
     ]
-    return call_generate_report(mod, variants, "Weather Report")
+
+    def _recent_output_pdfs(before_snapshot: dict[str, tuple[float, int]], limit_seconds: int = 600) -> list[str]:
+        now = datetime.now().timestamp()
+        found: list[tuple[float, str]] = []
+        try:
+            for p in OUTPUTS_DIR.glob("*.pdf"):
+                try:
+                    stat = p.stat()
+                    prev = before_snapshot.get(str(p))
+                    changed = prev is None or prev != (stat.st_mtime, stat.st_size)
+                    recent = (now - stat.st_mtime) <= limit_seconds
+                    if p.is_file() and stat.st_size > 1000 and changed and recent:
+                        found.append((stat.st_mtime, str(p)))
+                except Exception:
+                    continue
+        except Exception:
+            return []
+        found.sort(reverse=True)
+        return [path for _, path in found]
+
+    for attempt in attempts:
+        before_snapshot: dict[str, tuple[float, int]] = {}
+        try:
+            for p in OUTPUTS_DIR.glob("*.pdf"):
+                try:
+                    stat = p.stat()
+                    before_snapshot[str(p)] = (stat.st_mtime, stat.st_size)
+                except Exception:
+                    continue
+
+            result = generate(*attempt["args"], **attempt["kwargs"])
+
+            files = valid_output_files(file_list_from_result(result))
+            if files:
+                for f in files:
+                    log_progress(f"Weather Report PDF OK: {f}")
+                return files
+
+            detected = _recent_output_pdfs(before_snapshot)
+            if detected:
+                for f in detected:
+                    log_progress(f"Weather Report PDF OK (detected in outputs): {f}")
+                return detected
+
+            maybe = file_list_from_result(result)
+            if maybe:
+                log_progress(f"Weather Report returned file-like values but none validated: {maybe}")
+
+        except TypeError as exc:
+            last_error = exc
+            continue
+        except Exception as exc:
+            last_error = exc
+            # keep trying because this may just be the wrong argument order
+            log_progress(f"Weather Report attempt failed: {exc}")
+            continue
+
+    if last_error:
+        log_progress(f"Weather Report failed: {last_error}")
+    return []
 
 
 def run_trip_report(trip_payload: dict[str, Any]) -> list[str]:
