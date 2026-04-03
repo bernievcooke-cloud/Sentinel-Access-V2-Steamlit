@@ -1,204 +1,284 @@
-import streamlit as st
-from datetime import datetime
-import os
+#!/usr/bin/env python3
+from **future** import annotations
+
 import json
+import os
+from datetime import datetime
+from pathlib import Path
+import streamlit as st
 
 # ==============================
-# PAGE CONFIG
-# ==============================
-st.set_page_config(page_title="Sentinel Access Pro", layout="wide")
+
+# CONFIG
 
 # ==============================
-# SESSION STATE
+
+APP_TITLE = "Sentinel Access Pro"
+
+ROOT_DIR = Path(**file**).resolve().parent
+CONFIG_DIR = ROOT_DIR / "config"
+LOCATIONS_FILE = CONFIG_DIR / "locations.json"
+OUTPUTS_DIR = ROOT_DIR / "outputs"
+
+REPORT_OPTIONS = [
+"Surf Report",
+"Sky Report",
+"Moon Events Report",
+"Sky & Moon Report",
+"Weather Report",
+"Trip Report",
+]
+
 # ==============================
+
+# INIT
+
+# ==============================
+
+st.set_page_config(page_title=APP_TITLE, layout="wide")
+
 if "progress_log" not in st.session_state:
-    st.session_state.progress_log = []
+st.session_state["progress_log"] = ""
 
 # ==============================
-# LOGGING FUNCTION
-# ==============================
-def log_progress(msg):
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    st.session_state.progress_log.append(f"[{timestamp}] {msg}")
+
+# UTILS
 
 # ==============================
-# SAFE EMAIL WRAPPER
-# ==============================
-def send_email_safe(subject, body, attachments, recipient):
-    try:
-        from core.email_sender import send_report_email
-        send_report_email(subject, body, attachments, recipient)
-        log_progress("EMAIL SENT SUCCESSFULLY")
-    except Exception as e:
-        log_progress(f"EMAIL ERROR: {str(e)}")
+
+def now():
+return datetime.now().strftime("%H:%M:%S")
+
+def log(msg):
+st.session_state["progress_log"] += f"[{now()}] {msg}\n"
+
+def ensure_dirs():
+CONFIG_DIR.mkdir(exist_ok=True)
+OUTPUTS_DIR.mkdir(exist_ok=True)
 
 # ==============================
-# LOAD LOCATIONS
+
+# LOCATIONS
+
 # ==============================
+
 def load_locations():
-    path = "config/locations.json"
-    if not os.path.exists(path):
-        return {}
-    with open(path, "r") as f:
-        return json.load(f)
+if not LOCATIONS_FILE.exists():
+return {}
+return json.loads(LOCATIONS_FILE.read_text())
 
-locations = load_locations()
-location_names = sorted(locations.keys())
+def save_location(name, lat, lon):
+data = load_locations()
+data[name] = {"lat": lat, "lon": lon}
+LOCATIONS_FILE.write_text(json.dumps(data, indent=2))
 
 # ==============================
-# UI STYLES (SAFE)
+
+# EMAIL
+
 # ==============================
+
+def send_email(email, files):
+try:
+from core.email_sender import send_report_email
+send_report_email(email, "Sentinel Report", "Attached", files)
+return True, "EMAIL OK"
+except Exception as e:
+return False, f"EMAIL ERROR: {e}"
+
+# ==============================
+
+# PREMIUM CSS (FIXED)
+
+# ==============================
+
 st.markdown("""
+
 <style>
-.block-container {padding-top: 1.5rem;}
+.stApp {
+    background: linear-gradient(180deg, #f1f6fb, #e3edf7);
+}
 
 .card {
-    padding:10px;
-    border-radius:10px;
-    border:1px solid #e5e7eb;
-    background:#ffffff;
-    margin-bottom:10px;
+    background: white;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.08);
+    margin-bottom: 10px;
 }
 
-.step-title {
-    font-size:11px;
-    color:#6b7280;
-    font-weight:600;
+/* Smaller step cards */
+.step {
+    font-size: 13px;
+    font-weight: 600;
 }
 
-.step-body {
-    font-size:14px;
-    font-weight:600;
-    color:#111827;
+/* IMPORTANT: no select override (fix dropdown bug) */
+
+textarea {
+    font-size: 12px !important;
 }
 </style>
+
 """, unsafe_allow_html=True)
 
 # ==============================
+
 # HEADER
-# ==============================
-st.title("Sentinel Access Pro")
-st.caption("Premium report generation and email delivery")
 
 # ==============================
+
+st.title(APP_TITLE)
+
+# ==============================
+
 # STEP CARDS
-# ==============================
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown('<div class="card"><div class="step-title">STEP 1</div><div class="step-body">Enter user details</div></div>', unsafe_allow_html=True)
-
-with col2:
-    st.markdown('<div class="card"><div class="step-title">STEP 2</div><div class="step-body">Choose report set</div></div>', unsafe_allow_html=True)
-
-with col3:
-    st.markdown('<div class="card"><div class="step-title">SYSTEM</div><div class="step-body">System ready</div></div>', unsafe_allow_html=True)
 
 # ==============================
+
+c1, c2, c3 = st.columns(3)
+
+c1.markdown('<div class="card step">STEP 1<br>User Details</div>', unsafe_allow_html=True)
+c2.markdown('<div class="card step">STEP 2<br>Select Reports</div>', unsafe_allow_html=True)
+c3.markdown('<div class="card step">SYSTEM<br>Ready</div>', unsafe_allow_html=True)
+
+# ==============================
+
 # MAIN LAYOUT
+
 # ==============================
+
 left, mid, right = st.columns(3)
 
+locations = load_locations()
+location_names = list(locations.keys())
+
 # ==============================
+
 # LEFT PANEL
+
 # ==============================
+
 with left:
-    st.subheader("User Details")
+st.subheader("User Details")
+name = st.text_input("Name")
+email = st.text_input("Email")
 
-    name = st.text_input("Name", key="name_input")
-    email = st.text_input("Email", key="email_input")
+```
+st.markdown("---")
 
-    st.caption("Press Enter after typing name or email.")
+st.subheader("Admin")
 
-# ==============================
-# MIDDLE PANEL
-# ==============================
-with mid:
-    st.subheader("Select Reports & Locations")
+pw = st.text_input("Password", type="password")
 
-    reports = st.multiselect(
-        "Reports",
-        ["Surf Report", "Sky Report", "Weather Report", "Trip Report"],
-        key="report_select"
-    )
+if pw == "sentinel":
+    st.success("Unlocked")
 
-    selected_location = st.selectbox(
-        "Location",
-        location_names if location_names else ["No locations found"],
-        key="location_select"
-    )
+    new_name = st.text_input("Location Name")
+    lat = st.text_input("Lat")
+    lon = st.text_input("Lon")
 
-    col_btn1, col_btn2 = st.columns(2)
-
-    with col_btn1:
-        generate = st.button("Generate & Email Reports")
-
-    with col_btn2:
-        if st.button("Clear progress"):
-            st.session_state.progress_log = []
-
-# ==============================
-# RIGHT PANEL
-# ==============================
-with right:
-    st.subheader("Live System Progress")
-
-    st.text_area(
-        "System progress",
-        "\n".join(st.session_state.progress_log),
-        height=300
-    )
-
-# ==============================
-# RUN LOGIC
-# ==============================
-if generate:
-
-    if not name or not email:
-        log_progress("ERROR: Name and Email required")
-        st.stop()
-
-    if not reports:
-        log_progress("ERROR: No report selected")
-        st.stop()
-
-    log_progress("RUN START")
-
-    output_files = []
-
-    # ==========================
-    # WEATHER REPORT
-    # ==========================
-    if "Weather Report" in reports:
+    if st.button("Save Location"):
         try:
-            log_progress(f"Running Weather for {selected_location}")
+            save_location(new_name, float(lat), float(lon))
+            st.success("Saved")
+            log(f"Location saved: {new_name}")
+        except:
+            st.error("Invalid input")
+```
 
-            from core.weather_worker import generate_report
+# ==============================
 
-            lat = locations[selected_location]["lat"]
-            lon = locations[selected_location]["lon"]
+# MID PANEL
 
-            result = generate_report(selected_location, [lat, lon])
+# ==============================
 
-            if result:
-                output_files.append(result)
-                log_progress("Weather report generated")
+with mid:
+st.subheader("Reports")
 
-        except Exception as e:
-            log_progress(f"Weather ERROR: {str(e)}")
+```
+reports = st.multiselect("Select Reports", REPORT_OPTIONS, key="reports")
 
-    # ==========================
-    # SEND EMAIL
-    # ==========================
-    if output_files:
-        log_progress("Preparing email...")
-        send_email_safe(
-            subject="Sentinel Report",
-            body="Your report is attached.",
-            attachments=output_files,
-            recipient=email
-        )
+location = st.selectbox("Location", location_names)
+
+run = st.button("Generate & Email")
+
+if st.button("Clear Progress"):
+    st.session_state["progress_log"] = ""
+```
+
+# ==============================
+
+# RIGHT PANEL
+
+# ==============================
+
+with right:
+st.subheader("System Progress")
+
+```
+st.text_area(
+    "",
+    st.session_state["progress_log"],
+    height=350
+)
+```
+
+# ==============================
+
+# RUN LOGIC
+
+# ==============================
+
+if run:
+
+```
+st.session_state["progress_log"] = ""
+log("RUN START")
+
+if not name or not email:
+    log("Missing user details")
+    st.stop()
+
+lat = locations[location]["lat"]
+lon = locations[location]["lon"]
+
+outputs = []
+
+# WEATHER
+if "Weather Report" in reports:
+    try:
+        from core.weather_worker import generate_report
+        log("Weather running...")
+        out = generate_report(location, [lat, lon])
+        outputs.append(out)
+        log("Weather OK")
+    except Exception as e:
+        log(f"Weather ERROR: {e}")
+
+# MOON
+if "Moon Events Report" in reports:
+    try:
+        from core.moon_events_worker import generate_report
+        log("Moon running...")
+        out = generate_report(location, [lat, lon])
+        outputs.append(out)
+        log("Moon OK")
+    except Exception as e:
+        log(f"Moon ERROR: {e}")
+
+# EMAIL
+if outputs:
+    log("Sending email...")
+    ok, msg = send_email(email, outputs)
+    log(msg)
+
+    if ok:
+        st.success(msg)
     else:
-        log_progress("No reports generated - email skipped")
+        st.error(msg)
+else:
+    log("No reports generated")
 
-    log_progress("RUN COMPLETE")
+log("RUN COMPLETE")
+```
