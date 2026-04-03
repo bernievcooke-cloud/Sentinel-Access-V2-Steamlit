@@ -56,7 +56,7 @@ def render_progress_box() -> None:
                 "System progress",
                 value=st.session_state.get("progress_log", ""),
                 height=360,
-                key="progress_view_live",
+                key=f"progress_view_live_{len(st.session_state.get('progress_log', ''))}",
                 label_visibility="collapsed",
             )
         except Exception:
@@ -257,8 +257,15 @@ def valid_output_files(items: Iterable[str]) -> list[str]:
     for item in items:
         try:
             path = Path(item)
-            if path.exists() and path.is_file() and path.stat().st_size > 1000:
-                valid.append(str(path))
+            if not path.exists():
+                continue
+            if not path.is_file():
+                continue
+            if path.suffix.lower() != ".pdf":
+                continue
+            if path.stat().st_size <= 1000:
+                continue
+            valid.append(str(path))
         except Exception:
             continue
     return valid
@@ -435,8 +442,8 @@ def premium_css() -> None:
         """
         <style>
         :root {
-            --sentinel-bg-1: #dfe8f3;
-            --sentinel-bg-2: #edf3f9;
+            --sentinel-bg-1: #d9e5f1;
+            --sentinel-bg-2: #edf4fa;
             --sentinel-card: rgba(255,255,255,0.90);
             --sentinel-card-strong: rgba(255,255,255,0.98);
             --sentinel-border: rgba(21,67,122,0.12);
@@ -512,8 +519,8 @@ def premium_css() -> None:
             border: 1px solid var(--sentinel-border);
             box-shadow: var(--sentinel-shadow);
             border-radius: 20px;
-            padding: 0.56rem 0.72rem 0.6rem 0.72rem;
-            min-height: 72px;
+            padding: 0.52rem 0.70rem 0.56rem 0.70rem;
+            min-height: 70px;
             backdrop-filter: blur(8px);
             position: relative;
             overflow: hidden;
@@ -703,6 +710,10 @@ def hero_header() -> None:
         <div class="hero">
             <div class="hero-title">Sentinel Access Pro</div>
             <div class="hero-sub">Premium report generation and email delivery for surf, sky, weather, moon events, and trip planning.</div>
+                <div class="badge">Live system progress</div>
+                <div class="badge">Australia / Melbourne timezone</div>
+                <div class="badge">Location-aware reporting</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -755,7 +766,6 @@ def add_selected_report(report_name: str | None) -> None:
     if report_name not in current:
         current.append(report_name)
         st.session_state["selected_reports"] = current
-    st.session_state["report_picker"] = None
 
 
 def remove_selected_report(report_name: str) -> None:
@@ -919,16 +929,45 @@ def main() -> None:
         if "Trip Report" in selected_reports:
             st.markdown("---")
             st.markdown("**Trip Planner**")
-            trip_payload["start_location"] = st.selectbox("Start location", options=location_names, index=None, placeholder="Choose start location", key="trip_start_location")
-            trip_payload["destination_1"] = st.selectbox("Destination 1", options=location_names, index=None, placeholder="Choose first destination", key="trip_destination_1")
-            trip_payload["destination_2"] = st.selectbox("Destination 2", options=location_names, index=None, placeholder="Choose second destination", key="trip_destination_2")
-            trip_payload["destination_3"] = st.selectbox("Destination 3", options=location_names, index=None, placeholder="Choose third destination", key="trip_destination_3")
+            trip_payload["start_location"] = st.selectbox(
+                "Start location",
+                options=location_names,
+                index=None,
+                placeholder="Choose start location",
+                key="trip_start_location",
+            )
+            trip_payload["destination_1"] = st.selectbox(
+                "Destination 1",
+                options=location_names,
+                index=None,
+                placeholder="Choose first destination",
+                key="trip_destination_1",
+            )
+            trip_payload["destination_2"] = st.selectbox(
+                "Destination 2",
+                options=location_names,
+                index=None,
+                placeholder="Choose second destination",
+                key="trip_destination_2",
+            )
+            trip_payload["destination_3"] = st.selectbox(
+                "Destination 3",
+                options=location_names,
+                index=None,
+                placeholder="Choose third destination",
+                key="trip_destination_3",
+            )
             fuel_left, fuel_right = st.columns(2, gap="small")
             with fuel_left:
                 trip_payload["fuel_type"] = st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type")
             with fuel_right:
                 fuel_prices = [f"${x/100:.2f}" for x in range(140, 401, 5)]
-                trip_payload["fuel_price_per_litre"] = st.selectbox("Fuel price / litre", fuel_prices, index=fuel_prices.index("$1.90") if "$1.90" in fuel_prices else 0, key="trip_fuel_price")
+                trip_payload["fuel_price_per_litre"] = st.selectbox(
+                    "Fuel price / litre",
+                    fuel_prices,
+                    index=fuel_prices.index("$1.90") if "$1.90" in fuel_prices else 0,
+                    key="trip_fuel_price",
+                )
 
         generate_ready = bool(recipient_name.strip() and recipient_email.strip() and selected_reports)
         if any(r != "Trip Report" for r in selected_reports):
@@ -970,7 +1009,13 @@ def main() -> None:
         ]
         chosen_match_label = None
         if match_labels:
-            chosen_match_label = st.selectbox("Geocoding matches", options=match_labels, index=None, placeholder="Choose a match to save", key="chosen_match_label")
+            chosen_match_label = st.selectbox(
+                "Geocoding matches",
+                options=match_labels,
+                index=None,
+                placeholder="Choose a match to save",
+                key="chosen_match_label",
+            )
 
         with save_col:
             if st.button("Save location", key="save_location_btn"):
@@ -1018,7 +1063,6 @@ def main() -> None:
             for file_path in files:
                 st.markdown(f'<div class="file-chip">{Path(file_path).name}</div>', unsafe_allow_html=True)
         section_close()
-
 
 
 if __name__ == "__main__":
