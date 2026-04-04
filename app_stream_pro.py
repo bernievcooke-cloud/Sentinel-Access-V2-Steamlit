@@ -9,7 +9,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-import tempfile
 import uuid
 
 import requests
@@ -107,11 +106,13 @@ def extract_pdf_paths(value: Any) -> list[str]:
     return unique
 
 
-def scan_outputs(run_dir: str | Path | None = None) -> list[str]:
-    target_dir = Path(run_dir) if run_dir else OUTPUTS
-    target_dir.mkdir(parents=True, exist_ok=True)
+def scan_dir(target_dir: str | Path | None) -> list[str]:
+    if not target_dir:
+        return []
+    path = Path(target_dir)
+    path.mkdir(parents=True, exist_ok=True)
     results: list[str] = []
-    for p in target_dir.glob("*.pdf"):
+    for p in path.glob("*.pdf"):
         if valid_pdf(p):
             results.append(str(p))
     results.sort()
@@ -119,10 +120,15 @@ def scan_outputs(run_dir: str | Path | None = None) -> list[str]:
 
 
 def make_run_dir() -> Path:
-    base = Path(tempfile.gettempdir()) / "sentinel_access_runs"
-    run_dir = base / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    run_dir = OUTPUTS / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
+
+
+def collect_new_pdfs(before_run: set[str], run_dir: str | Path) -> list[str]:
+    after = set(scan_dir(run_dir)) | set(scan_dir(OUTPUTS))
+    new_files = [f for f in sorted(after - before_run) if valid_pdf(f)]
+    return new_files
 
 
 def load_locations() -> dict[str, dict[str, Any]]:
@@ -218,7 +224,6 @@ def run_worker(module_name: str, location_name: str, lat: float, lon: float, pay
 
     generate = getattr(mod, "generate_report")
     surf_profile = (payload or {}).get("surf_profile") if payload else None
-
     output_dir = str(Path(run_dir) if run_dir else OUTPUTS)
 
     if module_name == "core.surf_worker":
@@ -252,12 +257,11 @@ def run_worker(module_name: str, location_name: str, lat: float, lon: float, pay
 
     for args in attempts:
         try:
-            before_files = set(scan_outputs(output_dir))
+            before_files = set(scan_dir(run_dir)) | set(scan_dir(OUTPUTS))
             result = generate(*args)
             files = extract_pdf_paths(result)
             if not files:
-                after_files = set(scan_outputs(output_dir))
-                files = [f for f in sorted(after_files - before_files) if valid_pdf(f)]
+                files = collect_new_pdfs(before_files, run_dir or OUTPUTS)
             if files:
                 for file_path in files:
                     log(f"PDF OK: {file_path}")
@@ -317,7 +321,7 @@ def apply_styles() -> None:
             background: linear-gradient(180deg, #dfeaf7 0%, #eaf2fb 100%);
         }
         .block-container {
-            max-width: 1220px;
+            max-width: 1240px;
             padding-top: 1.1rem;
             padding-bottom: 1.5rem;
         }
@@ -368,7 +372,7 @@ def apply_styles() -> None:
             background: rgba(255,255,255,0.88);
             border: 1px solid #c9dced;
             border-radius: 16px;
-            padding: 1rem 1rem 0.65rem 1rem;
+            padding: 1rem 1rem 0.85rem 1rem;
             margin-bottom: 0.9rem;
         }
         .panel-title {
@@ -397,10 +401,6 @@ def apply_styles() -> None:
             border-radius: 12px !important;
             border: 1px solid #c9dced !important;
             background: #ffffff !important;
-        }
-        .button-row-gap {
-            margin-top: 0.2rem;
-            margin-bottom: 0.5rem;
         }
         .green-ready button {
             background: linear-gradient(135deg, #1faa63, #159251) !important;
@@ -446,6 +446,24 @@ def render_header(ready: bool, confirmed_count: int) -> None:
     )
 
 
+def normalize_reports(confirmed_reports: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for report in confirmed_reports:
+        if report == "Sky & Moon Report":
+            if "Sky Report" not in confirmed_reports:
+                normalized.append("Sky Report")
+            if "Moon Events Report" not in confirmed_reports:
+                normalized.append("Moon Events Report")
+        else:
+            normalized.append(report)
+
+    deduped: list[str] = []
+    for report in normalized:
+        if report not in deduped:
+            deduped.append(report)
+    return deduped
+
+
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, layout="wide")
     init_state()
@@ -454,43 +472,38 @@ def main() -> None:
     locations = load_locations()
     location_names = list(locations.keys())
 
-    selected_reports = st.session_state.get("confirmed_reports", [])
+    confirmed_reports = st.session_state.get("confirmed_reports", [])
     ready = bool(
         st.session_state.get("user_name", "").strip()
         and st.session_state.get("user_email", "").strip()
         and st.session_state.get("selected_location", "") not in ("", "None")
-        and selected_reports
+        and confirmed_reports
     )
 
-    render_header(ready, len(selected_reports))
+    render_header(ready, len(confirmed_reports))
 
     left, right = st.columns(2, gap="large")
 
     with left:
-        st.markdown('<div class="panel-box"><div class="panel-title">User details</div><div class="panel-note">Enter details and choose the location.</div>', unsafe_allow_html=True)
-        name = st.text_input("Name", key="user_name")
-        email = st.text_input("Email", key="user_email")
-        location = st.selectbox("Location", location_names if location_names else ["None"], key="selected_location")
+        st.markdown('<div class="panel-box"><div class="panel-title">User details</div><div class="panel-note">Enter name and email.</div>', unsafe_allow_html=True)
+        st.text_input("Name", key="user_name")
+        st.text_input("Email", key="user_email")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
-        st.markdown('<div class="panel-box"><div class="panel-title">Report selection</div><div class="panel-note">You can select multiple reports, then press Confirm Selection.</div>', unsafe_allow_html=True)
-        pending_reports = st.multiselect("Select reports", REPORTS, default=st.session_state.get("confirmed_reports", []), key="pending_reports")
+        st.markdown('<div class="panel-box"><div class="panel-title">Report selection</div><div class="panel-note">Select one or more reports, confirm them, then choose the location.</div>', unsafe_allow_html=True)
+        pending_reports = st.multiselect(
+            "Select reports",
+            REPORTS,
+            default=st.session_state.get("confirmed_reports", []),
+            key="pending_reports",
+        )
 
         btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="small")
         with btn_col1:
-            if st.button("Refresh Page", use_container_width=True):
-                st.rerun()
+            refresh_clicked = st.button("Refresh Page", use_container_width=True)
         with btn_col2:
-            if st.button("Confirm Selection", use_container_width=True):
-                st.session_state["confirmed_reports"] = list(pending_reports)
-                if pending_reports:
-                    st.session_state["selection_message"] = f"Confirmed {len(pending_reports)} report{'s' if len(pending_reports) != 1 else ''}."
-                    log(f"Confirmed reports: {', '.join(pending_reports)}")
-                else:
-                    st.session_state["selection_message"] = "No reports selected."
-                    log("Confirm selection pressed with no reports selected")
-                st.rerun()
+            confirm_clicked = st.button("Confirm Selection", use_container_width=True)
         with btn_col3:
             if ready:
                 st.markdown('<div class="green-ready">', unsafe_allow_html=True)
@@ -498,9 +511,25 @@ def main() -> None:
             if ready:
                 st.markdown('</div>', unsafe_allow_html=True)
 
+        st.selectbox("Location", location_names if location_names else ["None"], key="selected_location")
+
         if st.session_state.get("selection_message"):
             st.info(st.session_state["selection_message"])
         st.markdown('</div>', unsafe_allow_html=True)
+
+    if refresh_clicked:
+        st.session_state["selection_message"] = ""
+        st.rerun()
+
+    if confirm_clicked:
+        st.session_state["confirmed_reports"] = list(pending_reports)
+        if pending_reports:
+            st.session_state["selection_message"] = f"Confirmed {len(pending_reports)} report{'s' if len(pending_reports) != 1 else ''}."
+            log(f"Confirmed reports: {', '.join(pending_reports)}")
+        else:
+            st.session_state["selection_message"] = "No reports selected."
+            log("Confirm selection pressed with no reports selected")
+        st.rerun()
 
     with st.expander("Add New Location"):
         new_location_name = st.text_input("Location name", key="new_location_name")
@@ -538,7 +567,7 @@ def main() -> None:
                 st.write("Confirmed reports:", st.session_state.get("confirmed_reports", []))
                 st.write("Selected location:", st.session_state.get("selected_location", ""))
                 st.write("User email:", st.session_state.get("user_email", ""))
-            close_col1, close_col2 = st.columns([1, 4])
+            close_col1, _ = st.columns([1, 4])
             with close_col1:
                 if st.button("Close Admin", use_container_width=True):
                     st.session_state["admin_open"] = False
@@ -548,7 +577,7 @@ def main() -> None:
     if generate_clicked:
         st.session_state["log"] = ""
         st.session_state["files"] = []
-        confirmed_reports = list(st.session_state.get("confirmed_reports", []))
+        confirmed_reports = normalize_reports(list(st.session_state.get("confirmed_reports", [])))
         current_location = st.session_state.get("selected_location", "")
         payload = locations.get(current_location, {})
         lat = payload.get("lat")
@@ -562,37 +591,25 @@ def main() -> None:
             log(f"Selected location not found in locations.json: {current_location}")
             st.error("Selected location was not found. Please refresh and try again.")
         else:
-            normalized_reports: list[str] = []
-            for report in confirmed_reports:
-                if report == "Sky & Moon Report":
-                    if "Sky Report" not in confirmed_reports:
-                        normalized_reports.append("Sky Report")
-                    if "Moon Events Report" not in confirmed_reports:
-                        normalized_reports.append("Moon Events Report")
-                    continue
-                normalized_reports.append(report)
-
-            deduped_reports: list[str] = []
-            for report in normalized_reports:
-                if report not in deduped_reports:
-                    deduped_reports.append(report)
-
-            log(f"Confirmed run set: {', '.join(deduped_reports)}")
-
+            log(f"Confirmed run set: {', '.join(confirmed_reports)}")
             all_files: list[str] = []
-            for report in deduped_reports:
+
+            for report in confirmed_reports:
                 log(f"Running {report}")
                 before_count = len(all_files)
 
                 if report == "Surf Report":
-                    all_files.extend(run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir))
+                    files = run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir)
                 elif report == "Sky Report":
-                    all_files.extend(run_worker("core.sky_worker", current_location, lat, lon, payload, run_dir))
+                    files = run_worker("core.sky_worker", current_location, lat, lon, payload, run_dir)
                 elif report == "Moon Events Report":
-                    all_files.extend(run_worker("core.moon_events_worker", current_location, lat, lon, payload, run_dir))
+                    files = run_worker("core.moon_events_worker", current_location, lat, lon, payload, run_dir)
                 elif report == "Weather Report":
-                    all_files.extend(run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir))
+                    files = run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir)
+                else:
+                    files = []
 
+                all_files.extend(files)
                 if len(all_files) == before_count:
                     log(f"No PDF captured for {report}")
 
@@ -605,7 +622,7 @@ def main() -> None:
                 log("❌ NO REPORTS GENERATED — CHECK WORKER")
                 st.error("No reports generated — see System Progress below")
             else:
-                ok, message = send_reports(st.session_state.get("user_email", ""), deduped_reports, current_location, unique_files)
+                ok, message = send_reports(st.session_state.get("user_email", ""), confirmed_reports, current_location, unique_files)
                 log(message)
                 st.session_state["files"] = unique_files
                 if ok:
@@ -614,7 +631,7 @@ def main() -> None:
                     st.error(message)
 
     st.markdown('<div class="panel-box"><div class="panel-title">System progress</div><div class="panel-note">Run status and worker messages.</div>', unsafe_allow_html=True)
-    st.text_area("System Progress", st.session_state.get("log", ""), height=220, key="progress_box")
+    st.text_area("System Progress", value=st.session_state.get("log", ""), height=240, disabled=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.get("files"):
