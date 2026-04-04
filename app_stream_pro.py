@@ -188,8 +188,9 @@ def main():
 
     with c2:
         reports = st.multiselect("Reports", REPORTS, key="reports")
-        if reports:
-            st.session_state["reports"] = []  # forces dropdown close
+        # FIX: cannot modify session_state after widget creation
+        # removed forced reset (Streamlit limitation)
+        pass
         location = st.selectbox("Location", list(locations.keys()) or ["None"])
 
     st.markdown("---")
