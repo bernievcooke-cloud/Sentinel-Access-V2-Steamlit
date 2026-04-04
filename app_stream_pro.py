@@ -298,10 +298,8 @@ def run_sky_moon_report(
     run_dir: str | Path | None = None,
 ) -> list[str]:
     combined_candidates = [
-        "core.sky_moon_worker",
-        "core.sky_and_moon_worker",
-        "core.skymoon_worker",
-        "core.sky_2_worker",
+        "core.moon_events_worker_2",
+        "core.sky_2_worker_2",
     ]
 
     for module_name in combined_candidates:
@@ -313,17 +311,17 @@ def run_sky_moon_report(
     log("No combined sky/moon worker found. Falling back to individual sky and moon workers if available.")
     files: list[str] = []
 
-    sky_mod = soft_import("core.sky_worker")
+    sky_mod = soft_import("core.sky_2_worker_2")
     if sky_mod and hasattr(sky_mod, "generate_report"):
-        files.extend(run_worker("core.sky_worker", location_name, lat, lon, payload, run_dir))
+        files.extend(run_worker("core.sky_2_worker_2", location_name, lat, lon, payload, run_dir))
     else:
-        log("core.sky_worker missing")
+        log("core.sky_2_worker_2 missing")
 
-    moon_mod = soft_import("core.moon_events_worker")
+    moon_mod = soft_import("core.moon_events_worker_2")
     if moon_mod and hasattr(moon_mod, "generate_report"):
-        files.extend(run_worker("core.moon_events_worker", location_name, lat, lon, payload, run_dir))
+        files.extend(run_worker("core.moon_events_worker_2", location_name, lat, lon, payload, run_dir))
     else:
-        log("core.moon_events_worker missing")
+        log("core.moon_events_worker_2 missing")
 
     unique_files: list[str] = []
     for file_path in files:
