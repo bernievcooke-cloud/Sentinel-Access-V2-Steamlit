@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import importlib
 import json
+import shutil
+import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +18,6 @@ APP_TITLE = "Surf Sky Weather Trip Planning"
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "config"
 LOC_FILE = CONFIG / "locations.json"
-OUTPUTS = ROOT / "outputs"
 
 REPORTS = [
     "Surf Report",
@@ -113,7 +114,7 @@ def extract_pdf_paths(value: Any) -> list[str]:
             return
         if isinstance(item, (str, Path)):
             if valid_pdf(item):
-                found.append(str(item))
+                found.append(str(Path(item).resolve()))
             return
         if isinstance(item, dict):
             for v in item.values():
@@ -141,20 +142,42 @@ def scan_dir(target_dir: str | Path | None) -> list[str]:
     results: list[str] = []
     for p in path.rglob("*.pdf"):
         if valid_pdf(p):
-            results.append(str(p))
+            results.append(str(p.resolve()))
     results.sort()
     return results
 
 
 def make_run_dir() -> Path:
-    run_dir = OUTPUTS / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    base = Path(tempfile.gettempdir()) / "sentinel_runs"
+    base.mkdir(parents=True, exist_ok=True)
+    run_dir = base / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
 
 def collect_new_pdfs(before_run: set[str], run_dir: str | Path) -> list[str]:
-    after = set(scan_dir(run_dir)) | set(scan_dir(OUTPUTS))
+    after = set(scan_dir(run_dir))
     return [f for f in sorted(after - before_run) if valid_pdf(f)]
+
+
+def cleanup_generated_files(file_paths: list[str], run_dir: str | Path | None = None) -> None:
+    for file_path in file_paths:
+        try:
+            p = Path(file_path)
+            if p.exists() and p.is_file():
+                p.unlink()
+                log(f"Removed temporary file: {p}")
+        except Exception as exc:
+            log(f"Cleanup warning for {file_path}: {exc}")
+
+    if run_dir:
+        try:
+            rp = Path(run_dir)
+            if rp.exists():
+                shutil.rmtree(rp, ignore_errors=True)
+                log(f"Removed temporary run folder: {rp}")
+        except Exception as exc:
+            log(f"Cleanup warning for run folder: {exc}")
 
 
 def load_locations() -> dict[str, dict[str, Any]]:
@@ -277,7 +300,7 @@ def run_worker(
         return []
 
     generate = getattr(mod, "generate_report")
-    output_dir = str(Path(run_dir) if run_dir else OUTPUTS)
+    output_dir = str(Path(run_dir)) if run_dir else str(make_run_dir())
 
     if module_name in {"core.surf_worker", "core.weather_worker"}:
         attempts: list[tuple[Any, ...]] = [
@@ -304,11 +327,11 @@ def run_worker(
 
     for args in attempts:
         try:
-            before_files = set(scan_dir(run_dir)) | set(scan_dir(OUTPUTS))
+            before_files = set(scan_dir(run_dir))
             result = generate(*args)
             files = extract_pdf_paths(result)
             if not files:
-                files = collect_new_pdfs(before_files, run_dir or OUTPUTS)
+                files = collect_new_pdfs(before_files, run_dir or output_dir)
             if files:
                 for file_path in files:
                     log(f"PDF OK: {file_path}")
@@ -501,9 +524,6 @@ def apply_styles() -> None:
         .section-spacer {
             height: 0.12rem;
         }
-        .subtle-divider {
-            height: 0.45rem;
-        }
         div[data-testid="stTextInput"] label,
         div[data-testid="stSelectbox"] label,
         div[data-testid="stMultiSelect"] label,
@@ -590,7 +610,6 @@ def main() -> None:
         st.session_state["selected_location"] = pending_location
         st.session_state["location_after_save"] = ""
 
-    confirmed_reports = normalize_reports(st.session_state.get("confirmed_reports", []))
     pending_reports_preview = normalize_reports(st.session_state.get("pending_reports", []))
 
     trip_points_preview = [
@@ -602,7 +621,9 @@ def main() -> None:
     trip_route_preview = [p for p in trip_points_preview if p and str(p).strip()]
 
     has_trip_selected = "Trip Planner" in pending_reports_preview
-    has_standard_reports_selected = any(r in pending_reports_preview for r in ["Surf Report", "Sky & Moon Report", "Weather Report"])
+    has_standard_reports_selected = any(
+        r in pending_reports_preview for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]
+    )
 
     normal_ready = bool(
         st.session_state.get("user_name", "").strip()
@@ -611,10 +632,7 @@ def main() -> None:
         and pending_reports_preview
     )
 
-    trip_ready = bool(
-        (not has_trip_selected or len(trip_route_preview) >= 2)
-    )
-
+    trip_ready = bool(not has_trip_selected or len(trip_route_preview) >= 2)
     ready = bool(normal_ready and trip_ready)
 
     render_title()
@@ -687,7 +705,9 @@ def main() -> None:
 
         pending_reports_live = normalize_reports(st.session_state.get("pending_reports", []))
         pending_trip_mode = "Trip Planner" in pending_reports_live
-        pending_standard_mode = any(r in pending_reports_live for r in ["Surf Report", "Sky & Moon Report", "Weather Report"])
+        pending_standard_mode = any(
+            r in pending_reports_live for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]
+        )
 
         location_label = "Not selected"
 
@@ -852,7 +872,7 @@ def main() -> None:
         log("RUN START ✅")
 
         run_dir = make_run_dir()
-        log(f"Run folder: {run_dir}")
+        log(f"Temporary run folder: {run_dir}")
 
         selected_reports = normalize_reports(st.session_state.get("confirmed_reports", []))
         log(f"Confirmed run set: {', '.join(selected_reports) if selected_reports else 'None'}")
@@ -872,90 +892,95 @@ def main() -> None:
         all_files: list[str] = []
         email_location_label = current_location or "Unknown location"
 
-        if "Trip Planner" in selected_reports:
-            log("Trip Planner selected for this run")
-            ok, msg, trip_files = trip_planner(
-                route_points=filtered_route_points,
-                fuel_type=st.session_state.get("trip_fuel_type", "Petrol"),
-                fuel_price=float(st.session_state.get("trip_fuel_price", 2.00)),
-            )
-            log(msg)
-            if ok and trip_files:
-                all_files.extend(trip_files)
-            else:
-                log("Trip Planner produced no valid PDF")
-
-        non_trip_reports = [r for r in selected_reports if r != "Trip Planner"]
-
-        locations = load_locations()
-
-        if non_trip_reports:
-            if not current_location:
-                log("No main location selected for non-trip reports")
-                st.error("Please select a main location for Surf / Sky / Weather reports.")
-            else:
-                payload = locations.get(current_location, {})
-                if not payload:
-                    log(f"Selected location not found in locations.json: {current_location}")
-                    st.error("Selected location was not found. Please refresh and try again.")
+        try:
+            if "Trip Planner" in selected_reports:
+                log("Trip Planner selected for this run")
+                ok, msg, trip_files = trip_planner(
+                    route_points=filtered_route_points,
+                    fuel_type=st.session_state.get("trip_fuel_type", "Petrol"),
+                    fuel_price=float(st.session_state.get("trip_fuel_price", 2.00)),
+                )
+                log(msg)
+                if ok and trip_files:
+                    all_files.extend(trip_files)
                 else:
-                    lat = float(payload["lat"])
-                    lon = float(payload["lon"])
-                    email_location_label = current_location
-                    log(f"Resolved coords from locations.json: {lat}, {lon}")
+                    log("Trip Planner produced no valid PDF")
 
-                    for report in non_trip_reports:
-                        before_count = len(all_files)
+            non_trip_reports = [r for r in selected_reports if r != "Trip Planner"]
 
-                        if report == "Surf Report":
-                            log("Starting Surf Report worker")
-                            files = run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir)
+            locations = load_locations()
 
-                        elif report == "Sky & Moon Report":
-                            log("Starting Sky & Moon Report worker")
-                            files = run_sky_moon_report(current_location, lat, lon, payload, run_dir)
+            if non_trip_reports:
+                if not current_location:
+                    log("No main location selected for non-trip reports")
+                    st.error("Please select a main location for Surf / Sky / Weather reports.")
+                else:
+                    payload = locations.get(current_location, {})
+                    if not payload:
+                        log(f"Selected location not found in locations.json: {current_location}")
+                        st.error("Selected location was not found. Please refresh and try again.")
+                    else:
+                        lat = float(payload["lat"])
+                        lon = float(payload["lon"])
+                        email_location_label = current_location
+                        log(f"Resolved coords from locations.json: {lat}, {lon}")
 
-                        elif report == "Weather Report":
-                            log("Starting Weather Report worker")
-                            files = run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir)
+                        for report in non_trip_reports:
+                            before_count = len(all_files)
 
-                        else:
-                            files = []
+                            if report == "Surf Report":
+                                log("Starting Surf Report worker")
+                                files = run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir)
 
-                        if files:
-                            log(f"{report} completed with {len(files)} PDF file(s)")
-                        else:
-                            log(f"{report} returned no PDF file(s)")
+                            elif report == "Sky & Moon Report":
+                                log("Starting Sky & Moon Report worker")
+                                files = run_sky_moon_report(current_location, lat, lon, payload, run_dir)
 
-                        all_files.extend(files)
+                            elif report == "Weather Report":
+                                log("Starting Weather Report worker")
+                                files = run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir)
 
-                        if len(all_files) == before_count:
-                            log(f"No PDF captured for {report}")
+                            else:
+                                files = []
 
-        unique_files: list[str] = []
-        for file_path in all_files:
-            if file_path not in unique_files and valid_pdf(file_path):
-                unique_files.append(file_path)
+                            if files:
+                                log(f"{report} completed with {len(files)} PDF file(s)")
+                            else:
+                                log(f"{report} returned no PDF file(s)")
 
-        st.session_state["files"] = unique_files
-        log(f"Total valid PDFs captured: {len(unique_files)}")
+                            all_files.extend(files)
 
-        if not unique_files:
-            log("❌ NO REPORTS GENERATED — CHECK WORKER")
-            st.error("No reports generated — see System progress below.")
-        else:
-            log("Attempting to send email with attachments")
-            ok, message = send_reports(
-                st.session_state.get("user_email", "").strip(),
-                selected_reports,
-                email_location_label,
-                unique_files,
-            )
-            log(message)
-            if ok:
-                st.success(f"Reports sent successfully ({len(unique_files)} PDF attachments)")
+                            if len(all_files) == before_count:
+                                log(f"No PDF captured for {report}")
+
+            unique_files: list[str] = []
+            for file_path in all_files:
+                if file_path not in unique_files and valid_pdf(file_path):
+                    unique_files.append(file_path)
+
+            st.session_state["files"] = unique_files
+            log(f"Total valid PDFs captured: {len(unique_files)}")
+
+            if not unique_files:
+                log("❌ NO REPORTS GENERATED — CHECK WORKER")
+                st.error("No reports generated — see System progress below.")
             else:
-                st.error(message)
+                log("Attempting to send email with attachments")
+                ok, message = send_reports(
+                    st.session_state.get("user_email", "").strip(),
+                    selected_reports,
+                    email_location_label,
+                    unique_files,
+                )
+                log(message)
+                if ok:
+                    st.success(f"Reports sent successfully ({len(unique_files)} PDF attachments)")
+                else:
+                    st.error(message)
+
+        finally:
+            cleanup_generated_files(all_files, run_dir)
+            st.session_state["files"] = []
 
     if st.session_state.get("files"):
         st.markdown('<div class="panel-box"><div class="minor-heading">Generated files</div>', unsafe_allow_html=True)
