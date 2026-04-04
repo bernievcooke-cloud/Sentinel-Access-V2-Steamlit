@@ -129,6 +129,40 @@ def run(module, loc, lat, lon):
         log(f"{module} missing")
         return []
 
+    # CRITICAL FIX: handle ALL known worker signatures safely
+    attempts = [
+        (loc, [lat, lon], str(OUTPUTS), log),
+        (loc, [lat, lon], str(OUTPUTS)),
+        (loc, lat, lon, str(OUTPUTS), log),
+        (loc, lat, lon, str(OUTPUTS)),
+        (loc, [lat, lon], log),
+        (loc, lat, lon, log),
+        (loc, [lat, lon]),
+        (loc, lat, lon),
+    ]
+
+    for args in attempts:
+        try:
+            res = mod.generate_report(*args)
+
+            files = extract(res)
+            if not files:
+                files = scan()
+
+            if files:
+                for f in files:
+                    log(f"PDF OK: {f}")
+                return files
+
+        except TypeError:
+            continue
+        except Exception as e:
+            log(f"{module} failed: {e}")
+            return []
+
+    log(f"{module} failed: incompatible generate_report signature")
+    return []
+
     try:
         # FIX: handle both list and float signatures
         try:
