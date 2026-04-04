@@ -1,5 +1,5 @@
 # ==============================================
-# SENTINEL ACCESS PRO — FINAL PRODUCTION (REFINED)
+# SENTINEL ACCESS PRO — FINAL POLISHED UI BUILD
 # ==============================================
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 import requests
 import streamlit as st
 
-APP_TITLE = "Sentinel Access Pro"
+APP_TITLE = "Surf Sky Weather Trip Planning"
 ADMIN_PASSWORD = "admin123"
 
 ROOT = Path(__file__).resolve().parent
@@ -121,7 +121,7 @@ def geocode(name, state):
 
     return results
 
-# ---------- WORKER FIX ----------
+# ---------- WORKER ----------
 
 def run(module, loc, lat, lon):
     mod = soft_import(module)
@@ -129,7 +129,6 @@ def run(module, loc, lat, lon):
         log(f"{module} missing")
         return []
 
-    # CRITICAL FIX: handle ALL known worker signatures safely
     attempts = [
         (loc, [lat, lon], str(OUTPUTS), log),
         (loc, [lat, lon], str(OUTPUTS)),
@@ -144,14 +143,11 @@ def run(module, loc, lat, lon):
     for args in attempts:
         try:
             res = mod.generate_report(*args)
-
             files = extract(res)
-            if not files:
-                files = scan()
+            if not files: files = scan()
 
             if files:
-                for f in files:
-                    log(f"PDF OK: {f}")
+                for f in files: log(f"PDF OK: {f}")
                 return files
 
         except TypeError:
@@ -160,29 +156,8 @@ def run(module, loc, lat, lon):
             log(f"{module} failed: {e}")
             return []
 
-    log(f"{module} failed: incompatible generate_report signature")
+    log(f"{module} failed: signature mismatch")
     return []
-
-    try:
-        # FIX: handle both list and float signatures
-        try:
-            res = mod.generate_report(loc, [lat, lon], str(OUTPUTS), log)
-        except Exception:
-            res = mod.generate_report(loc, lat, lon, str(OUTPUTS), log)
-
-        files = extract(res)
-        if not files: files = scan()
-
-        if files:
-            for f in files: log(f"PDF OK: {f}")
-        else:
-            log("No PDF returned")
-
-        return files
-
-    except Exception as e:
-        log(f"{module} failed: {e}")
-        return []
 
 # ---------- EMAIL ----------
 
@@ -204,8 +179,10 @@ def main():
 
     st.markdown("""
     <style>
-    .block-container {max-width:1100px; padding-top:0.5rem}
-    .stButton button {height:40px; font-size:14px}
+    .stApp {background-color:#e6f0fa;}
+    .block-container {max-width:1000px; padding-top:0.5rem}
+    .input-box {background:#ffffff; padding:10px; border-radius:10px; border:1px solid #d0e2f2}
+    label {font-size:15px !important; font-weight:600 !important;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -217,17 +194,22 @@ def main():
     c1, c2 = st.columns(2)
 
     with c1:
+        st.markdown("<div class='input-box'>", unsafe_allow_html=True)
         name = st.text_input("Name")
         email = st.text_input("Email")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
-        reports = st.multiselect("Reports", REPORTS, key="reports")
-        # FIX: cannot modify session_state after widget creation
-        # removed forced reset (Streamlit limitation)
-        pass
+        st.markdown("<div class='input-box'>", unsafe_allow_html=True)
+        reports = st.multiselect("Reports", REPORTS)
         location = st.selectbox("Location", list(locations.keys()) or ["None"])
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
+
+    # ---- REFRESH ----
+    if st.button("Refresh Page"):
+        st.rerun()
 
     # ---- LOCATION ADD ----
     with st.expander("Add New Location"):
@@ -248,15 +230,20 @@ def main():
 
     # ---- ADMIN ----
     if st.button("Admin Panel"):
-        st.session_state.admin_open = not st.session_state.admin_open
+        st.session_state.admin_open = True
 
     if st.session_state.admin_open:
-        st.markdown("### Admin")
+        st.markdown("### Admin Panel")
         pwd = st.text_input("Password", type="password")
+
         if pwd == ADMIN_PASSWORD:
             st.success("Unlocked")
             st.write("Reports:", reports)
             st.write("Location:", location)
+
+            if st.button("Close Admin"):
+                st.session_state.admin_open = False
+                st.rerun()
 
     st.markdown("---")
 
@@ -303,7 +290,7 @@ def main():
             st.write(f)
 
     st.markdown("---")
-    st.text_area("System Progress", st.session_state.log, height=250)
+    st.text_area("System Progress", st.session_state.log, height=220)
 
 
 if __name__ == "__main__":
