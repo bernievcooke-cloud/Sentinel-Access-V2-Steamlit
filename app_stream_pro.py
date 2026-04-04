@@ -9,6 +9,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+import tempfile
+import uuid
 
 import requests
 import streamlit as st
@@ -105,14 +107,22 @@ def extract_pdf_paths(value: Any) -> list[str]:
     return unique
 
 
-def scan_outputs() -> list[str]:
-    OUTPUTS.mkdir(parents=True, exist_ok=True)
+def scan_outputs(run_dir: str | Path | None = None) -> list[str]:
+    target_dir = Path(run_dir) if run_dir else OUTPUTS
+    target_dir.mkdir(parents=True, exist_ok=True)
     results: list[str] = []
-    for p in OUTPUTS.glob("*.pdf"):
+    for p in target_dir.glob("*.pdf"):
         if valid_pdf(p):
             results.append(str(p))
     results.sort()
     return results
+
+
+def make_run_dir() -> Path:
+    base = Path(tempfile.gettempdir()) / "sentinel_access_runs"
+    run_dir = base / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
 
 
 def load_locations() -> dict[str, dict[str, Any]]:
@@ -200,7 +210,7 @@ def geocode_location(name: str, state_code: str) -> list[dict[str, Any]]:
     return results
 
 
-def run_worker(module_name: str, location_name: str, lat: float, lon: float, payload: dict[str, Any] | None = None) -> list[str]:
+def run_worker(module_name: str, location_name: str, lat: float, lon: float, payload: dict[str, Any] | None = None, run_dir: str | Path | None = None) -> list[str]:
     mod = soft_import(module_name)
     if not mod or not hasattr(mod, "generate_report"):
         log(f"{module_name} missing")
@@ -209,42 +219,44 @@ def run_worker(module_name: str, location_name: str, lat: float, lon: float, pay
     generate = getattr(mod, "generate_report")
     surf_profile = (payload or {}).get("surf_profile") if payload else None
 
+    output_dir = str(Path(run_dir) if run_dir else OUTPUTS)
+
     if module_name == "core.surf_worker":
         attempts = [
-            (location_name, [lat, lon, surf_profile], str(OUTPUTS), log),
-            (location_name, [lat, lon, surf_profile], str(OUTPUTS)),
-            (location_name, [lat, lon], str(OUTPUTS), log),
-            (location_name, [lat, lon], str(OUTPUTS)),
-            (location_name, lat, lon, str(OUTPUTS), log),
-            (location_name, lat, lon, str(OUTPUTS)),
+            (location_name, [lat, lon, surf_profile], output_dir, log),
+            (location_name, [lat, lon, surf_profile], output_dir),
+            (location_name, [lat, lon], output_dir, log),
+            (location_name, [lat, lon], output_dir),
+            (location_name, lat, lon, output_dir, log),
+            (location_name, lat, lon, output_dir),
             (location_name, lat, lon),
         ]
     elif module_name == "core.weather_worker":
         attempts = [
             (location_name, [lat, lon]),
-            (location_name, [lat, lon], str(OUTPUTS)),
-            (location_name, [lat, lon], str(OUTPUTS), log),
+            (location_name, [lat, lon], output_dir),
+            (location_name, [lat, lon], output_dir, log),
             (location_name, lat, lon),
-            (location_name, lat, lon, str(OUTPUTS)),
-            (location_name, lat, lon, str(OUTPUTS), log),
+            (location_name, lat, lon, output_dir),
+            (location_name, lat, lon, output_dir, log),
         ]
     else:
         attempts = [
-            (location_name, [lat, lon], str(OUTPUTS), log),
-            (location_name, [lat, lon], str(OUTPUTS)),
-            (location_name, lat, lon, str(OUTPUTS), log),
-            (location_name, lat, lon, str(OUTPUTS)),
+            (location_name, [lat, lon], output_dir, log),
+            (location_name, [lat, lon], output_dir),
+            (location_name, lat, lon, output_dir, log),
+            (location_name, lat, lon, output_dir),
             (location_name, [lat, lon]),
             (location_name, lat, lon),
         ]
 
     for args in attempts:
         try:
-            before_files = set(scan_outputs())
+            before_files = set(scan_outputs(output_dir))
             result = generate(*args)
             files = extract_pdf_paths(result)
             if not files:
-                after_files = set(scan_outputs())
+                after_files = set(scan_outputs(output_dir))
                 files = [f for f in sorted(after_files - before_files) if valid_pdf(f)]
             if files:
                 for file_path in files:
@@ -541,27 +553,48 @@ def main() -> None:
         payload = locations.get(current_location, {})
         lat = payload.get("lat")
         lon = payload.get("lon")
+        run_dir = make_run_dir()
 
         log("RUN START ✅")
+        log(f"Run folder: {run_dir}")
 
         if lat is None or lon is None:
             log(f"Selected location not found in locations.json: {current_location}")
             st.error("Selected location was not found. Please refresh and try again.")
         else:
-            all_files: list[str] = []
+            normalized_reports: list[str] = []
             for report in confirmed_reports:
+                if report == "Sky & Moon Report":
+                    if "Sky Report" not in confirmed_reports:
+                        normalized_reports.append("Sky Report")
+                    if "Moon Events Report" not in confirmed_reports:
+                        normalized_reports.append("Moon Events Report")
+                    continue
+                normalized_reports.append(report)
+
+            deduped_reports: list[str] = []
+            for report in normalized_reports:
+                if report not in deduped_reports:
+                    deduped_reports.append(report)
+
+            log(f"Confirmed run set: {', '.join(deduped_reports)}")
+
+            all_files: list[str] = []
+            for report in deduped_reports:
                 log(f"Running {report}")
+                before_count = len(all_files)
+
                 if report == "Surf Report":
-                    all_files.extend(run_worker("core.surf_worker", current_location, lat, lon, payload))
+                    all_files.extend(run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir))
                 elif report == "Sky Report":
-                    all_files.extend(run_worker("core.sky_worker", current_location, lat, lon, payload))
+                    all_files.extend(run_worker("core.sky_worker", current_location, lat, lon, payload, run_dir))
                 elif report == "Moon Events Report":
-                    all_files.extend(run_worker("core.moon_events_worker", current_location, lat, lon, payload))
-                elif report == "Sky & Moon Report":
-                    all_files.extend(run_worker("core.sky_worker", current_location, lat, lon, payload))
-                    all_files.extend(run_worker("core.moon_events_worker", current_location, lat, lon, payload))
+                    all_files.extend(run_worker("core.moon_events_worker", current_location, lat, lon, payload, run_dir))
                 elif report == "Weather Report":
-                    all_files.extend(run_worker("core.weather_worker", current_location, lat, lon, payload))
+                    all_files.extend(run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir))
+
+                if len(all_files) == before_count:
+                    log(f"No PDF captured for {report}")
 
             unique_files: list[str] = []
             for file_path in all_files:
@@ -572,11 +605,11 @@ def main() -> None:
                 log("❌ NO REPORTS GENERATED — CHECK WORKER")
                 st.error("No reports generated — see System Progress below")
             else:
-                ok, message = send_reports(st.session_state.get("user_email", ""), confirmed_reports, current_location, unique_files)
+                ok, message = send_reports(st.session_state.get("user_email", ""), deduped_reports, current_location, unique_files)
                 log(message)
                 st.session_state["files"] = unique_files
                 if ok:
-                    st.success("Reports sent successfully")
+                    st.success(f"Reports sent successfully ({len(unique_files)} PDF attachments)")
                 else:
                     st.error(message)
 
