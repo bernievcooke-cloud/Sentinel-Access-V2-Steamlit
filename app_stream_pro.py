@@ -552,7 +552,7 @@ def normalize_reports(confirmed_reports: list[str]) -> list[str]:
                 if len(all_files) == before_count:
                     log(f"No PDF captured for {report}")
 
-            unique_files: list[str] = []
+                unique_files: list[str] = []
     for file_path in all_files:
                 if file_path not in unique_files:
                     unique_files.append(file_path)
