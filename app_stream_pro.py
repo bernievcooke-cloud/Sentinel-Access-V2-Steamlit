@@ -1,5 +1,5 @@
 # ==============================================
-# SENTINEL ACCESS PRO — FULL PRODUCTION (FIXED)
+# SENTINEL ACCESS PRO — FINAL PRODUCTION (COMPLETE)
 # ==============================================
 
 from __future__ import annotations
@@ -8,15 +8,17 @@ import importlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-
+import requests
 import streamlit as st
 
+# ---------- CONFIG ----------
 APP_TITLE = "Sentinel Access Pro"
-ROOT_DIR = Path(__file__).resolve().parent
-CONFIG_DIR = ROOT_DIR / "config"
-LOCATIONS_FILE = CONFIG_DIR / "locations.json"
-OUTPUTS_DIR = ROOT_DIR / "outputs"
+ADMIN_PASSWORD = "admin123"  # <-- change this
+
+ROOT = Path(__file__).resolve().parent
+CONFIG = ROOT / "config"
+LOC_FILE = CONFIG / "locations.json"
+OUTPUTS = ROOT / "outputs"
 
 REPORTS = [
     "Surf Report",
@@ -26,85 +28,124 @@ REPORTS = [
     "Weather Report",
 ]
 
-# ---------------- INIT ----------------
+STATE_MAP = {
+    "VIC": "Victoria",
+    "NSW": "New South Wales",
+    "QLD": "Queensland",
+    "SA": "South Australia",
+    "WA": "Western Australia",
+    "TAS": "Tasmania",
+    "NT": "Northern Territory",
+    "ACT": "Australian Capital Territory",
+}
+
+# ---------- INIT ----------
 
 def now(): return datetime.now().strftime("%H:%M:%S")
 
 def init():
     for k, v in {
-        "progress": f"[{now()}] SYSTEM READY",
+        "log": f"[{now()}] SYSTEM READY",
         "files": [],
-        "selected_reports": [],
+        "geo_results": [],
+        "admin": False,
     }.items():
         st.session_state.setdefault(k, v)
 
 
 def log(msg):
-    st.session_state.progress += f"\n[{now()}] {msg}"
+    st.session_state.log += f"\n[{now()}] {msg}"
 
-# ---------------- UTIL ----------------
+# ---------- UTIL ----------
 
 def soft_import(name):
     try: return importlib.import_module(name)
     except: return None
 
 
-def valid_pdf(path):
+def valid_pdf(p):
     try:
-        p = Path(path)
+        p = Path(p)
         return p.exists() and p.stat().st_size > 1000
     except: return False
 
 
-def extract_files(result):
-    files = []
-    if isinstance(result, str): files.append(result)
+def extract(result):
+    out = []
+    if isinstance(result, str): out.append(result)
     elif isinstance(result, (list, tuple)):
-        files += [x for x in result if isinstance(x, str)]
+        out += [x for x in result if isinstance(x, str)]
     elif isinstance(result, dict):
-        files += [v for v in result.values() if isinstance(v, str)]
-    return [f for f in files if valid_pdf(f)]
+        out += [v for v in result.values() if isinstance(v, str)]
+    return [f for f in out if valid_pdf(f)]
 
 
-def scan_outputs():
-    return [str(p) for p in OUTPUTS_DIR.glob("*.pdf") if valid_pdf(p)]
+def scan():
+    return [str(p) for p in OUTPUTS.glob("*.pdf") if valid_pdf(p)]
 
-# ---------------- LOCATIONS ----------------
+# ---------- LOCATIONS ----------
 
 def load_locations():
-    if not LOCATIONS_FILE.exists(): return {}
-    try: return json.loads(LOCATIONS_FILE.read_text())
-    except: return {}
+    if not LOC_FILE.exists(): return {}
+    return json.loads(LOC_FILE.read_text())
 
 
-def save_location(name, lat, lon):
+def save_location(name, lat, lon, state):
+    CONFIG.mkdir(exist_ok=True)
     data = load_locations()
-    data[name] = {"lat": lat, "lon": lon}
-    CONFIG_DIR.mkdir(exist_ok=True)
-    LOCATIONS_FILE.write_text(json.dumps(data, indent=2))
+    data[name] = {"lat": lat, "lon": lon, "state": state}
+    LOC_FILE.write_text(json.dumps(data, indent=2))
 
-# ---------------- WORKERS ----------------
+# ---------- GEOCODING ----------
 
-def run_worker(module, location, lat, lon):
+def geocode(name, state):
+    try:
+        r = requests.get("https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": name, "count": 10, "countryCode": "AU"}, timeout=10)
+        data = r.json().get("results", [])
+    except Exception as e:
+        log(f"Geocode failed: {e}")
+        return []
+
+    target = STATE_MAP.get(state, "").lower()
+    results = []
+
+    for item in data:
+        if target and target not in str(item.get("admin1", "")).lower():
+            continue
+        results.append({
+            "name": item.get("name"),
+            "lat": item.get("latitude"),
+            "lon": item.get("longitude"),
+            "state": state
+        })
+
+    return results
+
+# ---------- WORKER ----------
+
+def run(module, loc, lat, lon):
     mod = soft_import(module)
     if not mod:
         log(f"{module} missing")
         return []
 
     try:
-        result = mod.generate_report(location, [lat, lon], str(OUTPUTS_DIR), log)
+        res = mod.generate_report(loc, [lat, lon], str(OUTPUTS), log)
+        files = extract(res)
+        if not files: files = scan()
+        if files:
+            for f in files: log(f"PDF OK: {f}")
+        else:
+            log("No PDF returned")
+        return files
     except Exception as e:
         log(f"{module} failed: {e}")
         return []
 
-    files = extract_files(result)
-    if not files:
-        files = scan_outputs()
-    return files
+# ---------- EMAIL ----------
 
-# ---------------- EMAIL ----------------
-
-def send_email(email, files):
+def send(email, files):
     mod = soft_import("core.email_sender")
     if not mod:
         return False, "Email module missing"
@@ -114,7 +155,7 @@ def send_email(email, files):
     except Exception as e:
         return False, str(e)
 
-# ---------------- UI ----------------
+# ---------- MAIN ----------
 
 def main():
     st.set_page_config(layout="wide")
@@ -124,77 +165,79 @@ def main():
 
     locations = load_locations()
 
-    # ---- STEP CARDS ----
-    c1, c2, c3 = st.columns(3)
-    c1.success("Step 1: Enter Details")
-    c2.success("Step 2: Select Reports")
-    c3.success("SYSTEM READY" if st.session_state.selected_reports else "Waiting")
+    # ---- INPUT ----
+    c1, c2 = st.columns(2)
 
-    st.markdown("---")
-
-    # ---- INPUTS ----
-    col1, col2 = st.columns(2)
-
-    with col1:
+    with c1:
         name = st.text_input("Name")
         email = st.text_input("Email")
 
-    with col2:
-        reports = st.multiselect("Select Reports", REPORTS, key="report_select")
+    with c2:
+        reports = st.multiselect("Reports", REPORTS)
         location = st.selectbox("Location", list(locations.keys()) or ["None"])
-
-    st.session_state.selected_reports = reports
-
-    # ---- ADMIN PANEL ----
-    with st.expander("Admin — Add Location"):
-        new_name = st.text_input("New Location Name")
-        lat = st.number_input("Latitude")
-        lon = st.number_input("Longitude")
-        if st.button("Save Location"):
-            save_location(new_name, lat, lon)
-            st.success("Saved — refresh app")
 
     st.markdown("---")
 
-    ready = name and email and reports and location != "None"
+    # ---- LOCATION ADD ----
+    with st.expander("Add New Location"):
+        loc_name = st.text_input("Location name")
+        state = st.selectbox("State", list(STATE_MAP.keys()))
 
-    if st.button("Generate & Email", disabled=not ready):
-        st.session_state.progress = ""
-        log("RUN START")
+        if st.button("Search Location"):
+            st.session_state.geo_results = geocode(loc_name, state)
 
-        lat = locations.get(location, {}).get("lat", -38.33)
-        lon = locations.get(location, {}).get("lon", 143.78)
+        if st.session_state.geo_results:
+            opts = [f"{r['name']} ({state})" for r in st.session_state.geo_results]
+            choice = st.selectbox("Select match", opts)
+
+            if st.button("Save Selected Location"):
+                idx = opts.index(choice)
+                r = st.session_state.geo_results[idx]
+                save_location(r["name"], r["lat"], r["lon"], r["state"])
+                st.success("Saved — refresh app")
+
+    # ---- ADMIN ----
+    with st.expander("Admin"):
+        pwd = st.text_input("Password", type="password")
+        if pwd == ADMIN_PASSWORD:
+            st.success("Admin unlocked")
+            st.write("Reports selected:", reports)
+            st.write("Location:", location)
+
+    st.markdown("---")
+
+    # ---- RUN ----
+    if st.button("Generate & Email", disabled=not (name and email and reports and location != "None")):
+        st.session_state.log = ""
+        log("RUN START ✅")
+
+        lat = locations.get(location, {}).get("lat")
+        lon = locations.get(location, {}).get("lon")
 
         files = []
 
         for r in reports:
             log(f"Running {r}")
 
-            if r == "Weather Report":
-                files += run_worker("core.weather_worker", location, lat, lon)
-            elif r == "Surf Report":
-                files += run_worker("core.surf_worker", location, lat, lon)
-            elif r == "Sky Report":
-                files += run_worker("core.sky_worker", location, lat, lon)
-            elif r == "Moon Events Report":
-                files += run_worker("core.moon_events_worker", location, lat, lon)
-            elif r == "Sky & Moon Report":
-                files += run_worker("core.sky_worker", location, lat, lon)
-                files += run_worker("core.moon_events_worker", location, lat, lon)
+            if r == "Weather Report": files += run("core.weather_worker", location, lat, lon)
+            if r == "Surf Report": files += run("core.surf_worker", location, lat, lon)
+            if r == "Sky Report": files += run("core.sky_worker", location, lat, lon)
+            if r == "Moon Events Report": files += run("core.moon_events_worker", location, lat, lon)
+            if r == "Sky & Moon Report":
+                files += run("core.sky_worker", location, lat, lon)
+                files += run("core.moon_events_worker", location, lat, lon)
 
         files = list(dict.fromkeys(files))
 
         if not files:
-            log("NO PDF GENERATED")
-            st.error("No reports generated")
+            log("❌ NO REPORTS GENERATED — CHECK WORKER OR API")
+            st.error("No reports generated — see log")
             return
 
-        log(f"{len(files)} PDFs ready")
-
-        ok, msg = send_email(email, files)
+        ok, msg = send(email, files)
         log(msg)
 
-        if ok: st.success("Email sent")
+        if ok: st.success("Reports sent")
         else: st.error(msg)
 
         st.session_state.files = files
@@ -206,8 +249,7 @@ def main():
             st.write(f)
 
     st.markdown("---")
-
-    st.text_area("System Progress", st.session_state.progress, height=300)
+    st.text_area("System Progress", st.session_state.log, height=300)
 
 
 if __name__ == "__main__":
