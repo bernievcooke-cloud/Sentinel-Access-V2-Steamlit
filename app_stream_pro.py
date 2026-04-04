@@ -1,7 +1,4 @@
-# ==============================================
-# SURF SKY WEATHER TRIP PLANNING — FINAL BUILD
-# ==============================================
-
+#!/usr/bin/env python3
 from __future__ import annotations
 
 import importlib
@@ -113,9 +110,10 @@ def scan_dir(target_dir: str | Path | None) -> list[str]:
     if not target_dir:
         return []
     path = Path(target_dir)
-    path.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        return []
     results: list[str] = []
-    for p in path.glob("*.pdf"):
+    for p in path.rglob("*.pdf"):
         if valid_pdf(p):
             results.append(str(p))
     results.sort()
@@ -238,23 +236,18 @@ def run_worker(
         return []
 
     generate = getattr(mod, "generate_report")
-    surf_profile = (payload or {}).get("surf_profile") if payload else None
     output_dir = str(Path(run_dir) if run_dir else OUTPUTS)
 
     if module_name == "core.surf_worker":
         attempts = [
-        (location_name, lat, lon, output_dir, log),
-        (location_name, lat, lon, output_dir),
-        (location_name, lat, lon),
-    ]
+            (location_name, lat, lon, output_dir, log),
+            (location_name, lat, lon, output_dir),
+            (location_name, lat, lon),
+        ]
     elif module_name == "core.weather_worker":
         attempts = [
-            (location_name, [lat, lon]),
-            (location_name, [lat, lon], output_dir),
-            (location_name, [lat, lon], output_dir, log),
+            (location_name, lat, lon, log),
             (location_name, lat, lon),
-            (location_name, lat, lon, output_dir),
-            (location_name, lat, lon, output_dir, log),
         ]
     else:
         attempts = [
