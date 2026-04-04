@@ -57,9 +57,11 @@ def init_state() -> None:
         st.session_state.setdefault(key, value)
 
 
+
 def log(message: str) -> None:
     current = st.session_state.get("log", "")
     st.session_state["log"] = f"{current}\n[{now_ts()}] {message}".strip()
+
 
 
 def soft_import(name: str):
@@ -69,12 +71,14 @@ def soft_import(name: str):
         return None
 
 
+
 def valid_pdf(pathlike: Any) -> bool:
     try:
         p = Path(pathlike)
         return p.exists() and p.is_file() and p.suffix.lower() == ".pdf" and p.stat().st_size > 1000
     except Exception:
         return False
+
 
 
 def extract_pdf_paths(value: Any) -> list[str]:
@@ -104,6 +108,7 @@ def extract_pdf_paths(value: Any) -> list[str]:
     return unique
 
 
+
 def scan_dir(target_dir: str | Path | None) -> list[str]:
     if not target_dir:
         return []
@@ -117,16 +122,18 @@ def scan_dir(target_dir: str | Path | None) -> list[str]:
     return results
 
 
+
 def make_run_dir() -> Path:
     run_dir = OUTPUTS / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
 
+
 def collect_new_pdfs(before_run: set[str], run_dir: str | Path) -> list[str]:
     after = set(scan_dir(run_dir)) | set(scan_dir(OUTPUTS))
-    new_files = [f for f in sorted(after - before_run) if valid_pdf(f)]
-    return new_files
+    return [f for f in sorted(after - before_run) if valid_pdf(f)]
+
 
 
 def load_locations() -> dict[str, dict[str, Any]]:
@@ -155,6 +162,7 @@ def load_locations() -> dict[str, dict[str, Any]]:
     return dict(sorted(cleaned.items(), key=lambda kv: kv[0].casefold()))
 
 
+
 def save_location(name: str, lat: float, lon: float, state: str) -> None:
     CONFIG.mkdir(parents=True, exist_ok=True)
     locations = load_locations()
@@ -173,6 +181,7 @@ def save_location(name: str, lat: float, lon: float, state: str) -> None:
                     manager.add_location(name, float(lat), float(lon))
         except Exception:
             pass
+
 
 
 def geocode_location(name: str, state_code: str) -> list[dict[str, Any]]:
@@ -214,7 +223,15 @@ def geocode_location(name: str, state_code: str) -> list[dict[str, Any]]:
     return results
 
 
-def run_worker(module_name: str, location_name: str, lat: float, lon: float, payload: dict[str, Any] | None = None, run_dir: str | Path | None = None) -> list[str]:
+
+def run_worker(
+    module_name: str,
+    location_name: str,
+    lat: float,
+    lon: float,
+    payload: dict[str, Any] | None = None,
+    run_dir: str | Path | None = None,
+) -> list[str]:
     mod = soft_import(module_name)
     if not mod or not hasattr(mod, "generate_report"):
         log(f"{module_name} missing")
@@ -274,7 +291,14 @@ def run_worker(module_name: str, location_name: str, lat: float, lon: float, pay
     return []
 
 
-def run_sky_moon_report(location_name: str, lat: float, lon: float, payload: dict[str, Any] | None = None, run_dir: str | Path | None = None) -> list[str]:
+
+def run_sky_moon_report(
+    location_name: str,
+    lat: float,
+    lon: float,
+    payload: dict[str, Any] | None = None,
+    run_dir: str | Path | None = None,
+) -> list[str]:
     combined_candidates = [
         "core.sky_moon_worker",
         "core.sky_and_moon_worker",
@@ -290,14 +314,14 @@ def run_sky_moon_report(location_name: str, lat: float, lon: float, payload: dic
 
     log("No combined sky/moon worker found. Falling back to individual sky and moon workers if available.")
     files: list[str] = []
-    sky_mod = soft_import("core.sky_worker")
-    moon_mod = soft_import("core.moon_events_worker")
 
+    sky_mod = soft_import("core.sky_worker")
     if sky_mod and hasattr(sky_mod, "generate_report"):
         files.extend(run_worker("core.sky_worker", location_name, lat, lon, payload, run_dir))
     else:
         log("core.sky_worker missing")
 
+    moon_mod = soft_import("core.moon_events_worker")
     if moon_mod and hasattr(moon_mod, "generate_report"):
         files.extend(run_worker("core.moon_events_worker", location_name, lat, lon, payload, run_dir))
     else:
@@ -309,58 +333,6 @@ def run_sky_moon_report(location_name: str, lat: float, lon: float, payload: dic
             unique_files.append(file_path)
     return unique_files
 
-    generate = getattr(mod, "generate_report")
-    surf_profile = (payload or {}).get("surf_profile") if payload else None
-    output_dir = str(Path(run_dir) if run_dir else OUTPUTS)
-
-    if module_name == "core.surf_worker":
-        attempts = [
-            (location_name, [lat, lon, surf_profile], output_dir, log),
-            (location_name, [lat, lon, surf_profile], output_dir),
-            (location_name, [lat, lon], output_dir, log),
-            (location_name, [lat, lon], output_dir),
-            (location_name, lat, lon, output_dir, log),
-            (location_name, lat, lon, output_dir),
-            (location_name, lat, lon),
-        ]
-    elif module_name == "core.weather_worker":
-        attempts = [
-            (location_name, [lat, lon]),
-            (location_name, [lat, lon], output_dir),
-            (location_name, [lat, lon], output_dir, log),
-            (location_name, lat, lon),
-            (location_name, lat, lon, output_dir),
-            (location_name, lat, lon, output_dir, log),
-        ]
-    else:
-        attempts = [
-            (location_name, [lat, lon], output_dir, log),
-            (location_name, [lat, lon], output_dir),
-            (location_name, lat, lon, output_dir, log),
-            (location_name, lat, lon, output_dir),
-            (location_name, [lat, lon]),
-            (location_name, lat, lon),
-        ]
-
-    for args in attempts:
-        try:
-            before_files = set(scan_dir(run_dir)) | set(scan_dir(OUTPUTS))
-            result = generate(*args)
-            files = extract_pdf_paths(result)
-            if not files:
-                files = collect_new_pdfs(before_files, run_dir or OUTPUTS)
-            if files:
-                for file_path in files:
-                    log(f"PDF OK: {file_path}")
-                return files
-        except TypeError:
-            continue
-        except Exception as exc:
-            log(f"{module_name} failed: {exc}")
-            return []
-
-    log(f"{module_name} failed: incompatible generate_report signature")
-    return []
 
 
 def send_reports(email: str, reports: list[str], location_name: str, file_paths: list[str]) -> tuple[bool, str]:
@@ -398,6 +370,7 @@ def send_reports(email: str, reports: list[str], location_name: str, file_paths:
             return False, f"EMAIL ERROR: {exc}"
 
     return False, "Email sender found, but no compatible send function matched"
+
 
 
 def apply_styles() -> None:
@@ -505,6 +478,7 @@ def apply_styles() -> None:
     )
 
 
+
 def render_header(ready: bool, confirmed_count: int) -> None:
     st.markdown(
         f"""
@@ -533,9 +507,153 @@ def render_header(ready: bool, confirmed_count: int) -> None:
     )
 
 
+
 def normalize_reports(confirmed_reports: list[str]) -> list[str]:
     deduped: list[str] = []
     for report in confirmed_reports:
+        if report not in deduped:
+            deduped.append(report)
+    return deduped
+
+
+
+def main() -> None:
+    st.set_page_config(page_title=APP_TITLE, layout="wide")
+    init_state()
+    apply_styles()
+
+    locations = load_locations()
+    location_names = list(locations.keys())
+
+    confirmed_reports = st.session_state.get("confirmed_reports", [])
+    ready = bool(
+        st.session_state.get("user_name", "").strip()
+        and st.session_state.get("user_email", "").strip()
+        and st.session_state.get("selected_location", "") not in ("", "None")
+        and confirmed_reports
+    )
+
+    render_header(ready, len(confirmed_reports))
+
+    left, right = st.columns(2, gap="large")
+
+    with left:
+        st.markdown(
+            '<div class="panel-box"><div class="panel-title">User details</div><div class="panel-note">Enter name and email.</div>',
+            unsafe_allow_html=True,
+        )
+        st.text_input("Name", key="user_name")
+        st.text_input("Email", key="user_email")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with right:
+        st.markdown(
+            '<div class="panel-box"><div class="panel-title">Report selection</div><div class="panel-note">Select one or more reports, confirm them, then choose the location.</div>',
+            unsafe_allow_html=True,
+        )
+        pending_reports = st.multiselect(
+            "Select reports",
+            REPORTS,
+            default=st.session_state.get("confirmed_reports", []),
+            key="pending_reports",
+        )
+
+        btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="small")
+        with btn_col1:
+            refresh_clicked = st.button("Refresh Page", use_container_width=True)
+        with btn_col2:
+            confirm_clicked = st.button("Confirm Selection", use_container_width=True)
+        with btn_col3:
+            if ready:
+                st.markdown('<div class="green-ready">', unsafe_allow_html=True)
+            generate_clicked = st.button("Generate Reports", use_container_width=True, disabled=not ready)
+            if ready:
+                st.markdown("</div>", unsafe_allow_html=True)
+
+        st.selectbox("Location", location_names if location_names else ["None"], key="selected_location")
+
+        if st.session_state.get("selection_message"):
+            st.info(st.session_state["selection_message"])
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if refresh_clicked:
+        st.session_state["selection_message"] = ""
+        st.rerun()
+
+    if confirm_clicked:
+        st.session_state["confirmed_reports"] = list(pending_reports)
+        if pending_reports:
+            st.session_state["selection_message"] = f"Confirmed {len(pending_reports)} report{'s' if len(pending_reports) != 1 else ''}."
+            log(f"Confirmed reports: {', '.join(pending_reports)}")
+        else:
+            st.session_state["selection_message"] = "No reports selected."
+            log("Confirm selection pressed with no reports selected")
+        st.rerun()
+
+    with st.expander("Add New Location"):
+        new_location_name = st.text_input("Location name", key="new_location_name")
+        new_state = st.selectbox("State", list(STATE_MAP.keys()), key="new_location_state")
+
+        if st.button("Search Location"):
+            st.session_state["geo_results"] = geocode_location(new_location_name, new_state)
+            st.rerun()
+
+        geo_results = st.session_state.get("geo_results", [])
+        if geo_results:
+            options = [f"{item['name']} ({item['state']})" for item in geo_results]
+            selected_match = st.selectbox("Select match", options, key="geo_choice")
+            if st.button("Save Selected Location"):
+                idx = options.index(selected_match)
+                chosen = geo_results[idx]
+                save_location(chosen["name"], chosen["lat"], chosen["lon"], chosen["state"])
+                st.session_state["selected_location"] = chosen["name"]
+                st.session_state["geo_results"] = []
+                st.success(f"Saved {chosen['name']} — location list refreshed")
+                log(f"Location saved: {chosen['name']} ({chosen['state']})")
+                st.rerun()
+
+    admin_col1, admin_col2 = st.columns([1, 5], gap="small")
+    with admin_col1:
+        if st.button("Admin Panel", use_container_width=True):
+            st.session_state["admin_open"] = True
+            st.rerun()
+    with admin_col2:
+        if st.session_state.get("admin_open"):
+            st.markdown('<div class="panel-box"><div class="panel-title">Admin panel</div>', unsafe_allow_html=True)
+            pwd = st.text_input("Password", type="password", key="admin_password")
+            if pwd == ADMIN_PASSWORD:
+                st.success("Admin unlocked")
+                st.write("Confirmed reports:", st.session_state.get("confirmed_reports", []))
+                st.write("Selected location:", st.session_state.get("selected_location", ""))
+                st.write("User email:", st.session_state.get("user_email", ""))
+            close_col1, _ = st.columns([1, 4])
+            with close_col1:
+                if st.button("Close Admin", use_container_width=True):
+                    st.session_state["admin_open"] = False
+                    st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    if generate_clicked:
+        st.session_state["log"] = ""
+        st.session_state["files"] = []
+        current_reports = normalize_reports(list(st.session_state.get("confirmed_reports", [])))
+        current_location = st.session_state.get("selected_location", "")
+        payload = locations.get(current_location, {})
+        lat = payload.get("lat")
+        lon = payload.get("lon")
+        run_dir = make_run_dir()
+
+        log("RUN START ✅")
+        log(f"Run folder: {run_dir}")
+
+        if lat is None or lon is None:
+            log(f"Selected location not found in locations.json: {current_location}")
+            st.error("Selected location was not found. Please refresh and try again.")
+        else:
+            log(f"Confirmed run set: {', '.join(current_reports)}")
+            all_files: list[str] = []
+
+            for report in current_reports:
                 log(f"Running {report}")
                 before_count = len(all_files)
 
@@ -552,16 +670,21 @@ def normalize_reports(confirmed_reports: list[str]) -> list[str]:
                 if len(all_files) == before_count:
                     log(f"No PDF captured for {report}")
 
-                unique_files: list[str] = []
-    for file_path in all_files:
+            unique_files: list[str] = []
+            for file_path in all_files:
                 if file_path not in unique_files:
                     unique_files.append(file_path)
 
-                if not unique_files:
+            if not unique_files:
                 log("❌ NO REPORTS GENERATED — CHECK WORKER")
                 st.error("No reports generated — see System Progress below")
-                else:
-                ok, message = send_reports(st.session_state.get("user_email", ""), confirmed_reports, current_location, unique_files)
+            else:
+                ok, message = send_reports(
+                    st.session_state.get("user_email", ""),
+                    current_reports,
+                    current_location,
+                    unique_files,
+                )
                 log(message)
                 st.session_state["files"] = unique_files
                 if ok:
@@ -569,15 +692,18 @@ def normalize_reports(confirmed_reports: list[str]) -> list[str]:
                 else:
                     st.error(message)
 
-    st.markdown('<div class="panel-box"><div class="panel-title">System progress</div><div class="panel-note">Run status and worker messages.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="panel-box"><div class="panel-title">System progress</div><div class="panel-note">Run status and worker messages.</div>',
+        unsafe_allow_html=True,
+    )
     st.text_area("System Progress", value=st.session_state.get("log", ""), height=240, disabled=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("files"):
         st.markdown('<div class="panel-box"><div class="panel-title">Generated files</div>', unsafe_allow_html=True)
         for item in st.session_state["files"]:
             st.write(item)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
