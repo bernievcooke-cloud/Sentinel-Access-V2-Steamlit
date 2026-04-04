@@ -131,10 +131,11 @@ def run(module, loc, lat, lon):
 
     # FIX: correct surf worker bad argument issue
     if module == "core.surf_worker":
+        # HARD FIX: surf_worker REQUIRES lat, lon (NOT list)
         attempts = [
-            (loc, [lat, lon], str(OUTPUTS)),
+            (loc, lat, lon, str(OUTPUTS), log),
             (loc, lat, lon, str(OUTPUTS)),
-            (loc, [lat, lon]),
+            (loc, lat, lon, log),
             (loc, lat, lon),
         ]
     else:
