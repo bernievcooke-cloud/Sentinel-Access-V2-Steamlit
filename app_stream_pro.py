@@ -55,11 +55,9 @@ def init_state() -> None:
         st.session_state.setdefault(key, value)
 
 
-
 def log(message: str) -> None:
     current = st.session_state.get("log", "")
     st.session_state["log"] = f"{current}\n[{now_ts()}] {message}".strip()
-
 
 
 def soft_import(name: str):
@@ -69,14 +67,12 @@ def soft_import(name: str):
         return None
 
 
-
 def valid_pdf(pathlike: Any) -> bool:
     try:
         p = Path(pathlike)
         return p.exists() and p.is_file() and p.suffix.lower() == ".pdf" and p.stat().st_size > 1000
     except Exception:
         return False
-
 
 
 def extract_pdf_paths(value: Any) -> list[str]:
@@ -106,7 +102,6 @@ def extract_pdf_paths(value: Any) -> list[str]:
     return unique
 
 
-
 def scan_dir(target_dir: str | Path | None) -> list[str]:
     if not target_dir:
         return []
@@ -121,18 +116,15 @@ def scan_dir(target_dir: str | Path | None) -> list[str]:
     return results
 
 
-
 def make_run_dir() -> Path:
     run_dir = OUTPUTS / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
 
-
 def collect_new_pdfs(before_run: set[str], run_dir: str | Path) -> list[str]:
     after = set(scan_dir(run_dir)) | set(scan_dir(OUTPUTS))
     return [f for f in sorted(after - before_run) if valid_pdf(f)]
-
 
 
 def load_locations() -> dict[str, dict[str, Any]]:
@@ -161,7 +153,6 @@ def load_locations() -> dict[str, dict[str, Any]]:
     return dict(sorted(cleaned.items(), key=lambda kv: kv[0].casefold()))
 
 
-
 def save_location(name: str, lat: float, lon: float, state: str) -> None:
     CONFIG.mkdir(parents=True, exist_ok=True)
     locations = load_locations()
@@ -180,7 +171,6 @@ def save_location(name: str, lat: float, lon: float, state: str) -> None:
                     manager.add_location(name, float(lat), float(lon))
         except Exception:
             pass
-
 
 
 def geocode_location(name: str, state_code: str) -> list[dict[str, Any]]:
@@ -222,7 +212,6 @@ def geocode_location(name: str, state_code: str) -> list[dict[str, Any]]:
     return results
 
 
-
 def patch_weather_worker(mod) -> None:
     if not hasattr(mod, "_parse_local_times"):
         return
@@ -238,7 +227,6 @@ def patch_weather_worker(mod) -> None:
         return dt.dt.tz_convert(tz).dt.tz_localize(None)
 
     mod._parse_local_times = _safe_parse_local_times
-
 
 
 def run_worker(
@@ -302,7 +290,6 @@ def run_worker(
     return []
 
 
-
 def run_sky_moon_report(
     location_name: str,
     lat: float,
@@ -345,7 +332,6 @@ def run_sky_moon_report(
     return unique_files
 
 
-
 def send_reports(email: str, reports: list[str], location_name: str, file_paths: list[str]) -> tuple[bool, str]:
     mod = soft_import("core.email_sender")
     if not mod:
@@ -381,7 +367,6 @@ def send_reports(email: str, reports: list[str], location_name: str, file_paths:
             return False, f"EMAIL ERROR: {exc}"
 
     return False, "Email sender found, but no compatible send function matched"
-
 
 
 def apply_styles() -> None:
@@ -489,7 +474,6 @@ def apply_styles() -> None:
     )
 
 
-
 def render_header(ready: bool, confirmed_count: int) -> None:
     st.markdown(
         f"""
@@ -518,14 +502,12 @@ def render_header(ready: bool, confirmed_count: int) -> None:
     )
 
 
-
 def normalize_reports(confirmed_reports: list[str]) -> list[str]:
     deduped: list[str] = []
     for report in confirmed_reports:
         if report not in deduped:
             deduped.append(report)
     return deduped
-
 
 
 def main() -> None:
@@ -562,6 +544,7 @@ def main() -> None:
             '<div class="panel-box"><div class="panel-title">Report selection</div><div class="panel-note">Select one or more reports, confirm them, then choose the location.</div>',
             unsafe_allow_html=True,
         )
+
         pending_reports = st.multiselect(
             "Select reports",
             REPORTS,
@@ -570,26 +553,38 @@ def main() -> None:
         )
 
         btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="small")
+
         with btn_col1:
             refresh_clicked = st.button("Refresh Page", use_container_width=True)
+
         with btn_col2:
             confirm_clicked = st.button("Confirm Selection", use_container_width=True)
+
         with btn_col3:
             if ready:
                 st.markdown('<div class="green-ready">', unsafe_allow_html=True)
-            generate_clicked = st.button("Generate Reports", use_container_width=True, disabled=not ready)
+            generate_clicked = st.button(
+                "Generate Reports",
+                use_container_width=True,
+                disabled=not ready,
+            )
             if ready:
                 st.markdown("</div>", unsafe_allow_html=True)
 
-                pending_location = st.session_state.get("location_after_save", "")
+        pending_location = st.session_state.get("location_after_save", "")
         if pending_location and pending_location in location_names:
             st.session_state["selected_location"] = pending_location
             st.session_state["location_after_save"] = ""
 
-        st.selectbox("Location", location_names if location_names else ["None"], key="selected_location")
+        st.selectbox(
+            "Location",
+            location_names if location_names else ["None"],
+            key="selected_location",
+        )
 
         if st.session_state.get("selection_message"):
             st.info(st.session_state["selection_message"])
+
         st.markdown("</div>", unsafe_allow_html=True)
 
     if refresh_clicked:
