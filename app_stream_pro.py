@@ -41,8 +41,8 @@ def now_ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
 
-def init_state() -> None:
-    defaults = {
+def default_state() -> dict[str, Any]:
+    return {
         "log": f"[{now_ts()}] SYSTEM READY",
         "files": [],
         "geo_results": [],
@@ -63,9 +63,21 @@ def init_state() -> None:
         "trip_fuel_price": 2.00,
         "new_location_name": "",
         "new_location_state": "VIC",
+        "geo_choice": "",
     }
-    for key, value in defaults.items():
+
+
+def init_state() -> None:
+    for key, value in default_state().items():
         st.session_state.setdefault(key, value)
+
+
+def reset_app_state() -> None:
+    keep_keys = set()
+    for key in list(st.session_state.keys()):
+        if key not in keep_keys:
+            del st.session_state[key]
+    init_state()
 
 
 def log(message: str) -> None:
@@ -436,15 +448,15 @@ def apply_styles() -> None:
         }
         .block-container {
             max-width: 1240px;
-            padding-top: 2.35rem;
+            padding-top: 2.55rem;
             padding-bottom: 1.2rem;
         }
         .title-wrap {
             background: rgba(255,255,255,0.80);
             border: 1px solid #c9dced;
             border-radius: 18px;
-            padding: 0.95rem 1.05rem;
-            margin-top: 0.25rem;
+            padding: 1.00rem 1.05rem;
+            margin-top: 0.35rem;
             margin-bottom: 0.85rem;
         }
         .title-main {
@@ -608,10 +620,56 @@ def main() -> None:
 
     left, right = st.columns([1, 1], gap="large")
 
+    search_location_clicked = False
+    save_location_clicked = False
+    refresh_clicked = False
+    confirm_clicked = False
+    generate_clicked = False
+    clear_log_clicked = False
+
     with left:
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         st.text_input("Name", key="user_name")
         st.text_input("Email", key="user_email")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        info_box("Admin function", "Search and save a new location into locations.json")
+        st.text_input("Location name", key="new_location_name")
+        st.selectbox("State", list(STATE_MAP.keys()), key="new_location_state")
+
+        loc_btn1, loc_btn2 = st.columns(2, gap="small")
+        with loc_btn1:
+            search_location_clicked = st.button("Search Location", use_container_width=True)
+        with loc_btn2:
+            save_location_clicked = st.button("Save Selected Location", use_container_width=True)
+
+        geo_results = st.session_state.get("geo_results", [])
+        if geo_results:
+            option_labels = [
+                f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                for item in geo_results
+            ]
+            if option_labels:
+                current_choice = st.session_state.get("geo_choice", "")
+                if current_choice not in option_labels:
+                    st.session_state["geo_choice"] = option_labels[0]
+                st.selectbox("Select match", option_labels, key="geo_choice")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="panel-box"><div class="minor-heading">System progress</div>',
+            unsafe_allow_html=True,
+        )
+        st.text_area(
+            "System Progress",
+            value=st.session_state.get("log", ""),
+            height=300,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+        clear_log_clicked = st.button("Clear progress", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with right:
@@ -658,53 +716,6 @@ def main() -> None:
             )
             location_label = st.session_state.get("selected_location", "") or "Not selected"
 
-            st.markdown('<div class="subtle-divider"></div>', unsafe_allow_html=True)
-            info_box("Add new location", "Search by town/suburb and save to locations.json")
-            st.text_input("Location name", key="new_location_name")
-            st.selectbox("State", list(STATE_MAP.keys()), key="new_location_state")
-
-            loc_btn1, loc_btn2 = st.columns(2, gap="small")
-            with loc_btn1:
-                search_location_clicked = st.button("Search Location", use_container_width=True)
-            with loc_btn2:
-                save_location_clicked = st.button("Save Selected Location", use_container_width=True)
-
-            geo_results = st.session_state.get("geo_results", [])
-
-            if search_location_clicked:
-                st.session_state["geo_results"] = geocode_location(
-                    st.session_state.get("new_location_name", ""),
-                    st.session_state.get("new_location_state", "VIC"),
-                )
-                if not st.session_state["geo_results"]:
-                    st.warning("No matches found.")
-                st.rerun()
-
-            geo_results = st.session_state.get("geo_results", [])
-            if geo_results:
-                option_labels = [
-                    f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
-                    for item in geo_results
-                ]
-                selected_match = st.selectbox("Select match", option_labels, key="geo_choice")
-
-                if save_location_clicked:
-                    idx = option_labels.index(selected_match)
-                    chosen = geo_results[idx]
-                    save_location(
-                        chosen["name"],
-                        float(chosen["lat"]),
-                        float(chosen["lon"]),
-                        chosen["state"],
-                    )
-                    st.session_state["location_after_save"] = chosen["name"]
-                    st.session_state["geo_results"] = []
-                    st.session_state["selection_message"] = f"Location saved: {chosen['name']}"
-                    log(f"Location saved: {chosen['name']} ({chosen['state']})")
-                    st.rerun()
-            elif save_location_clicked:
-                st.warning("Search first, then choose a match to save.")
-
         st.session_state["preview_report"] = ", ".join(pending_reports) if pending_reports else "Not selected"
         st.session_state["preview_location"] = location_label
 
@@ -729,12 +740,59 @@ def main() -> None:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
+    if search_location_clicked:
+        st.session_state["geo_results"] = geocode_location(
+            st.session_state.get("new_location_name", ""),
+            st.session_state.get("new_location_state", "VIC"),
+        )
+        geo_results = st.session_state.get("geo_results", [])
+        if geo_results:
+            option_labels = [
+                f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                for item in geo_results
+            ]
+            st.session_state["geo_choice"] = option_labels[0] if option_labels else ""
+        else:
+            st.warning("No matches found.")
+        st.rerun()
+
+    if save_location_clicked:
+        geo_results = st.session_state.get("geo_results", [])
+        if not geo_results:
+            st.warning("Search first, then choose a match to save.")
+        else:
+            option_labels = [
+                f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                for item in geo_results
+            ]
+            selected_match = st.session_state.get("geo_choice", "")
+            if selected_match not in option_labels:
+                st.warning("Please choose a match to save.")
+            else:
+                idx = option_labels.index(selected_match)
+                chosen = geo_results[idx]
+                save_location(
+                    chosen["name"],
+                    float(chosen["lat"]),
+                    float(chosen["lon"]),
+                    chosen["state"],
+                )
+                st.session_state["location_after_save"] = chosen["name"]
+                st.session_state["geo_results"] = []
+                st.session_state["geo_choice"] = ""
+                st.session_state["selection_message"] = f"Location saved: {chosen['name']}"
+                log(f"Location saved: {chosen['name']} ({chosen['state']})")
+                st.rerun()
+
     if st.session_state.get("selection_message"):
         st.info(st.session_state["selection_message"])
 
+    if clear_log_clicked:
+        st.session_state["log"] = f"[{now_ts()}] SYSTEM READY"
+        st.rerun()
+
     if refresh_clicked:
-        st.session_state["selection_message"] = ""
-        st.session_state["pending_reports"] = list(st.session_state.get("confirmed_reports", []))
+        reset_app_state()
         st.rerun()
 
     if confirm_clicked:
@@ -781,6 +839,8 @@ def main() -> None:
                 all_files.extend(trip_files)
 
         non_trip_reports = [r for r in selected_reports if r != "Trip Planner"]
+
+        locations = load_locations()
 
         if non_trip_reports:
             current_location = st.session_state.get("selected_location", "").strip()
@@ -840,23 +900,6 @@ def main() -> None:
                 st.success(f"Reports sent successfully ({len(unique_files)} PDF attachments)")
             else:
                 st.error(message)
-
-    st.markdown(
-        '<div class="panel-box"><div class="minor-heading">System progress</div>',
-        unsafe_allow_html=True,
-    )
-    st.text_area(
-        "System Progress",
-        value=st.session_state.get("log", ""),
-        height=280,
-        disabled=True,
-        label_visibility="collapsed",
-    )
-    clear_log_clicked = st.button("Clear progress", use_container_width=True)
-    if clear_log_clicked:
-        st.session_state["log"] = f"[{now_ts()}] SYSTEM READY"
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("files"):
         st.markdown('<div class="panel-box"><div class="minor-heading">Generated files</div>', unsafe_allow_html=True)
