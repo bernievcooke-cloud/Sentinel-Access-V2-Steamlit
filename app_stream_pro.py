@@ -243,14 +243,10 @@ def run_worker(
 
     if module_name == "core.surf_worker":
         attempts = [
-            (location_name, [lat, lon, surf_profile], output_dir, log),
-            (location_name, [lat, lon, surf_profile], output_dir),
-            (location_name, [lat, lon], output_dir, log),
-            (location_name, [lat, lon], output_dir),
-            (location_name, lat, lon, output_dir, log),
-            (location_name, lat, lon, output_dir),
-            (location_name, lat, lon),
-        ]
+        (location_name, lat, lon, output_dir, log),
+        (location_name, lat, lon, output_dir),
+        (location_name, lat, lon),
+    ]
     elif module_name == "core.weather_worker":
         attempts = [
             (location_name, [lat, lon]),
