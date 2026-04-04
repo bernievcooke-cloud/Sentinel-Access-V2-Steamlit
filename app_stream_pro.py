@@ -622,7 +622,7 @@ def main() -> None:
                 idx = options.index(selected_match)
                 chosen = geo_results[idx]
                 save_location(chosen["name"], chosen["lat"], chosen["lon"], chosen["state"])
-                                st.session_state["location_after_save"] = chosen["name"]
+                st.session_state["location_after_save"] = chosen["name"]
                 st.session_state["geo_results"] = []
                 st.success(f"Saved {chosen['name']} — location list refreshed")
                 log(f"Location saved: {chosen['name']} ({chosen['state']})")
