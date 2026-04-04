@@ -466,8 +466,41 @@ def apply_styles() -> None:
         """
         <style>
         .stApp {
-            background: linear-gradient(180deg, #dfeaf7 0%, #eaf2fb 100%);
-        }
+    background: linear-gradient(180deg, #dceaf7 0%, #eaf2fb 100%);
+}
+
+.block-container {
+    max-width: 1240px;
+    padding-top: 2.4rem;
+    padding-bottom: 1.2rem;
+}
+
+.title-wrap,
+.panel-box,
+.compact-box {
+    background: #ffffff !important;
+    border: 1px solid #bfd3e6 !important;
+    box-shadow: 0 2px 10px rgba(23, 50, 77, 0.06);
+}
+
+.title-main,
+.compact-value,
+.minor-heading {
+    color: #17324D !important;
+}
+
+.compact-label {
+    color: #4B6785 !important;
+}
+
+div[data-testid="stTextInput"] input,
+div[data-testid="stTextArea"] textarea,
+div[data-testid="stSelectbox"] > div,
+div[data-testid="stMultiSelect"] > div {
+    background: #ffffff !important;
+    border: 1px solid #bfd3e6 !important;
+    color: #17324D !important;
+}
         .block-container {
             max-width: 1240px;
             padding-top: 2.55rem;
