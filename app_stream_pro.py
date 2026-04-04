@@ -1,4 +1,4 @@
-/#!/usr/bin/env python3
+#!/usr/bin/env python3
 from __future__ import annotations
 
 import importlib
@@ -49,6 +49,7 @@ def init_state() -> None:
         "admin_open": False,
         "confirmed_reports": [],
         "selection_message": "",
+        "location_after_save": "",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -580,6 +581,11 @@ def main() -> None:
             if ready:
                 st.markdown("</div>", unsafe_allow_html=True)
 
+                pending_location = st.session_state.get("location_after_save", "")
+        if pending_location and pending_location in location_names:
+            st.session_state["selected_location"] = pending_location
+            st.session_state["location_after_save"] = ""
+
         st.selectbox("Location", location_names if location_names else ["None"], key="selected_location")
 
         if st.session_state.get("selection_message"):
@@ -616,7 +622,7 @@ def main() -> None:
                 idx = options.index(selected_match)
                 chosen = geo_results[idx]
                 save_location(chosen["name"], chosen["lat"], chosen["lon"], chosen["state"])
-                st.session_state["selected_location"] = chosen["name"]
+                                st.session_state["location_after_save"] = chosen["name"]
                 st.session_state["geo_results"] = []
                 st.success(f"Saved {chosen['name']} — location list refreshed")
                 log(f"Location saved: {chosen['name']} ({chosen['state']})")
