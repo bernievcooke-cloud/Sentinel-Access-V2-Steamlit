@@ -37,6 +37,8 @@ STATE_MAP = {
     "ACT": "Australian Capital Territory",
 }
 
+ADMIN_PASSWORD = "admin123"
+
 
 def now_ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
@@ -66,6 +68,8 @@ def default_state() -> dict[str, Any]:
         "trip_fuel_price": 2.00,
         "new_location_name": "",
         "new_location_state": "VIC",
+        "admin_password": "",
+        "admin_unlocked": False,
     }
 
 
@@ -458,7 +462,7 @@ def send_reports(email: str, reports: list[str], location_name: str, file_paths:
         except Exception as exc:
             return False, f"EMAIL ERROR: {exc}"
 
-    return False, "Email sender found, but no compatible send function matched."
+    return False, "Email sender found, but no compatible send function matched."    
 
 
 def apply_styles() -> None:
@@ -466,53 +470,21 @@ def apply_styles() -> None:
         """
         <style>
         .stApp {
-    background: linear-gradient(180deg, #dceaf7 0%, #eaf2fb 100%);
-}
-
-.block-container {
-    max-width: 1240px;
-    padding-top: 2.4rem;
-    padding-bottom: 1.2rem;
-}
-
-.title-wrap,
-.panel-box,
-.compact-box {
-    background: #ffffff !important;
-    border: 1px solid #bfd3e6 !important;
-    box-shadow: 0 2px 10px rgba(23, 50, 77, 0.06);
-}
-
-.title-main,
-.compact-value,
-.minor-heading {
-    color: #17324D !important;
-}
-
-.compact-label {
-    color: #4B6785 !important;
-}
-
-div[data-testid="stTextInput"] input,
-div[data-testid="stTextArea"] textarea,
-div[data-testid="stSelectbox"] > div,
-div[data-testid="stMultiSelect"] > div {
-    background: #ffffff !important;
-    border: 1px solid #bfd3e6 !important;
-    color: #17324D !important;
-}
+            background: linear-gradient(180deg, #dceaf7 0%, #eaf2fb 100%);
+        }
         .block-container {
             max-width: 1240px;
             padding-top: 2.55rem;
             padding-bottom: 1.2rem;
         }
         .title-wrap {
-            background: rgba(255,255,255,0.80);
-            border: 1px solid #c9dced;
+            background: #ffffff;
+            border: 1px solid #bfd3e6;
             border-radius: 18px;
             padding: 1.00rem 1.05rem;
             margin-top: 0.35rem;
             margin-bottom: 0.85rem;
+            box-shadow: 0 2px 10px rgba(23, 50, 77, 0.06);
         }
         .title-main {
             font-size: 1.9rem;
@@ -521,15 +493,16 @@ div[data-testid="stMultiSelect"] > div {
             line-height: 1.1;
         }
         .panel-box {
-            background: rgba(255,255,255,0.90);
-            border: 1px solid #c9dced;
+            background: #ffffff;
+            border: 1px solid #bfd3e6;
             border-radius: 16px;
             padding: 0.85rem 0.9rem 0.75rem 0.9rem;
             margin-bottom: 0.8rem;
+            box-shadow: 0 2px 10px rgba(23, 50, 77, 0.06);
         }
         .compact-box {
-            background: rgba(255,255,255,0.90);
-            border: 1px solid #c9dced;
+            background: #ffffff;
+            border: 1px solid #bfd3e6;
             border-radius: 14px;
             padding: 0.55rem 0.75rem;
             margin-bottom: 0.55rem;
@@ -570,8 +543,9 @@ div[data-testid="stMultiSelect"] > div {
         div[data-testid="stSelectbox"] > div,
         div[data-testid="stMultiSelect"] > div {
             border-radius: 12px !important;
-            border: 1px solid #c9dced !important;
+            border: 1px solid #bfd3e6 !important;
             background: #ffffff !important;
+            color: #17324d !important;
         }
         .green-ready button {
             background: linear-gradient(135deg, #1faa63, #159251) !important;
@@ -678,6 +652,7 @@ def main() -> None:
     confirm_clicked = False
     generate_clicked = False
     clear_log_clicked = False
+    unlock_admin_clicked = False
 
     with left:
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
@@ -686,30 +661,35 @@ def main() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        info_box("Admin function", "Search and save a new location into locations.json")
-        st.text_input("Location name", key="new_location_name")
-        st.selectbox("State", list(STATE_MAP.keys()), key="new_location_state")
+        info_box("Admin function", "Enter admin password to manage locations")
+        st.text_input("Admin password", type="password", key="admin_password")
+        unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
 
-        loc_btn1, loc_btn2 = st.columns(2, gap="small")
-        with loc_btn1:
-            search_location_clicked = st.button("Search Location", use_container_width=True)
-        with loc_btn2:
-            save_location_clicked = st.button("Save Selected Location", use_container_width=True)
+        if st.session_state.get("admin_unlocked", False):
+            st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+            st.text_input("Location name", key="new_location_name")
+            st.selectbox("State", list(STATE_MAP.keys()), key="new_location_state")
 
-        if st.session_state.get("show_geo_results", False):
-            geo_results = st.session_state.get("geo_results", [])
-            if geo_results:
-                option_labels = [
-                    f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
-                    for item in geo_results
-                ]
-                if option_labels:
-                    current_choice = st.session_state.get("geo_choice", "")
-                    if current_choice not in option_labels:
-                        st.session_state["geo_choice"] = option_labels[0]
-                    st.selectbox("Select match", option_labels, key="geo_choice")
-            else:
-                st.session_state["show_geo_results"] = False
+            loc_btn1, loc_btn2 = st.columns(2, gap="small")
+            with loc_btn1:
+                search_location_clicked = st.button("Search Location", use_container_width=True)
+            with loc_btn2:
+                save_location_clicked = st.button("Save Selected Location", use_container_width=True)
+
+            if st.session_state.get("show_geo_results", False):
+                geo_results = st.session_state.get("geo_results", [])
+                if geo_results:
+                    option_labels = [
+                        f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                        for item in geo_results
+                    ]
+                    if option_labels:
+                        current_choice = st.session_state.get("geo_choice", "")
+                        if current_choice not in option_labels:
+                            st.session_state["geo_choice"] = option_labels[0]
+                        st.selectbox("Select match", option_labels, key="geo_choice")
+                else:
+                    st.session_state["show_geo_results"] = False
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -810,58 +790,81 @@ def main() -> None:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    if search_location_clicked:
-        log("Admin search started")
-        st.session_state["geo_results"] = geocode_location(
-            st.session_state.get("new_location_name", ""),
-            st.session_state.get("new_location_state", "VIC"),
-        )
-        geo_results = st.session_state.get("geo_results", [])
-        if geo_results:
-            option_labels = [
-                f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
-                for item in geo_results
-            ]
-            st.session_state["geo_choice"] = option_labels[0] if option_labels else ""
-            st.session_state["show_geo_results"] = True
-            log("Admin search complete: matches ready for selection")
+    if unlock_admin_clicked:
+        entered = st.session_state.get("admin_password", "")
+        if entered == ADMIN_PASSWORD:
+            st.session_state["admin_unlocked"] = True
+            log("Admin unlocked")
+            st.success("Admin unlocked.")
         else:
-            st.session_state["geo_choice"] = ""
+            st.session_state["admin_unlocked"] = False
             st.session_state["show_geo_results"] = False
-            st.warning("No matches found.")
-            log("Admin search complete: no matches found")
+            st.session_state["geo_results"] = []
+            st.session_state["geo_choice"] = ""
+            log("Admin unlock failed")
+            st.error("Incorrect admin password.")
+        st.rerun()
+
+    if search_location_clicked:
+        if not st.session_state.get("admin_unlocked", False):
+            log("Admin search blocked: admin not unlocked")
+            st.error("Unlock admin first.")
+        else:
+            log("Admin search started")
+            st.session_state["geo_results"] = geocode_location(
+                st.session_state.get("new_location_name", ""),
+                st.session_state.get("new_location_state", "VIC"),
+            )
+            geo_results = st.session_state.get("geo_results", [])
+            if geo_results:
+                option_labels = [
+                    f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                    for item in geo_results
+                ]
+                st.session_state["geo_choice"] = option_labels[0] if option_labels else ""
+                st.session_state["show_geo_results"] = True
+                log("Admin search complete: matches ready for selection")
+            else:
+                st.session_state["geo_choice"] = ""
+                st.session_state["show_geo_results"] = False
+                st.warning("No matches found.")
+                log("Admin search complete: no matches found")
         st.rerun()
 
     if save_location_clicked:
-        geo_results = st.session_state.get("geo_results", [])
-        if not geo_results:
-            st.warning("Search first, then choose a match to save.")
-            log("Save location blocked: no search results available")
+        if not st.session_state.get("admin_unlocked", False):
+            log("Save location blocked: admin not unlocked")
+            st.error("Unlock admin first.")
         else:
-            option_labels = [
-                f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
-                for item in geo_results
-            ]
-            selected_match = st.session_state.get("geo_choice", "")
-            if selected_match not in option_labels:
-                st.warning("Please choose a match to save.")
-                log("Save location blocked: no valid match selected")
+            geo_results = st.session_state.get("geo_results", [])
+            if not geo_results:
+                st.warning("Search first, then choose a match to save.")
+                log("Save location blocked: no search results available")
             else:
-                idx = option_labels.index(selected_match)
-                chosen = geo_results[idx]
-                save_location(
-                    chosen["name"],
-                    float(chosen["lat"]),
-                    float(chosen["lon"]),
-                    chosen["state"],
-                )
-                st.session_state["location_after_save"] = chosen["name"]
-                st.session_state["geo_results"] = []
-                st.session_state["geo_choice"] = ""
-                st.session_state["show_geo_results"] = False
-                st.session_state["selection_message"] = f"Location saved: {chosen['name']}"
-                log(f"Location saved: {chosen['name']} ({chosen['state']})")
-                st.rerun()
+                option_labels = [
+                    f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                    for item in geo_results
+                ]
+                selected_match = st.session_state.get("geo_choice", "")
+                if selected_match not in option_labels:
+                    st.warning("Please choose a match to save.")
+                    log("Save location blocked: no valid match selected")
+                else:
+                    idx = option_labels.index(selected_match)
+                    chosen = geo_results[idx]
+                    save_location(
+                        chosen["name"],
+                        float(chosen["lat"]),
+                        float(chosen["lon"]),
+                        chosen["state"],
+                    )
+                    st.session_state["location_after_save"] = chosen["name"]
+                    st.session_state["geo_results"] = []
+                    st.session_state["geo_choice"] = ""
+                    st.session_state["show_geo_results"] = False
+                    st.session_state["selection_message"] = f"Location saved: {chosen['name']}"
+                    log(f"Location saved: {chosen['name']} ({chosen['state']})")
+            st.rerun()
 
     if st.session_state.get("selection_message"):
         st.info(st.session_state["selection_message"])
