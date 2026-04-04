@@ -1,5 +1,5 @@
 # ==============================================
-# SENTINEL ACCESS PRO — FINAL PRODUCTION (COMPLETE)
+# SENTINEL ACCESS PRO — FINAL PRODUCTION (REFINED)
 # ==============================================
 
 from __future__ import annotations
@@ -11,9 +11,8 @@ from pathlib import Path
 import requests
 import streamlit as st
 
-# ---------- CONFIG ----------
 APP_TITLE = "Sentinel Access Pro"
-ADMIN_PASSWORD = "admin123"  # <-- change this
+ADMIN_PASSWORD = "admin123"
 
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "config"
@@ -48,7 +47,7 @@ def init():
         "log": f"[{now()}] SYSTEM READY",
         "files": [],
         "geo_results": [],
-        "admin": False,
+        "admin_open": False,
     }.items():
         st.session_state.setdefault(k, v)
 
@@ -96,7 +95,7 @@ def save_location(name, lat, lon, state):
     data[name] = {"lat": lat, "lon": lon, "state": state}
     LOC_FILE.write_text(json.dumps(data, indent=2))
 
-# ---------- GEOCODING ----------
+# ---------- GEOCODE ----------
 
 def geocode(name, state):
     try:
@@ -122,7 +121,7 @@ def geocode(name, state):
 
     return results
 
-# ---------- WORKER ----------
+# ---------- WORKER FIX ----------
 
 def run(module, loc, lat, lon):
     mod = soft_import(module)
@@ -131,14 +130,22 @@ def run(module, loc, lat, lon):
         return []
 
     try:
-        res = mod.generate_report(loc, [lat, lon], str(OUTPUTS), log)
+        # FIX: handle both list and float signatures
+        try:
+            res = mod.generate_report(loc, [lat, lon], str(OUTPUTS), log)
+        except Exception:
+            res = mod.generate_report(loc, lat, lon, str(OUTPUTS), log)
+
         files = extract(res)
         if not files: files = scan()
+
         if files:
             for f in files: log(f"PDF OK: {f}")
         else:
             log("No PDF returned")
+
         return files
+
     except Exception as e:
         log(f"{module} failed: {e}")
         return []
@@ -155,11 +162,18 @@ def send(email, files):
     except Exception as e:
         return False, str(e)
 
-# ---------- MAIN ----------
+# ---------- UI ----------
 
 def main():
     st.set_page_config(layout="wide")
     init()
+
+    st.markdown("""
+    <style>
+    .block-container {max-width:1100px; padding-top:0.5rem}
+    .stButton button {height:40px; font-size:14px}
+    </style>
+    """, unsafe_allow_html=True)
 
     st.title(APP_TITLE)
 
@@ -173,7 +187,9 @@ def main():
         email = st.text_input("Email")
 
     with c2:
-        reports = st.multiselect("Reports", REPORTS)
+        reports = st.multiselect("Reports", REPORTS, key="reports")
+        if reports:
+            st.session_state["reports"] = []  # forces dropdown close
         location = st.selectbox("Location", list(locations.keys()) or ["None"])
 
     st.markdown("---")
@@ -183,25 +199,28 @@ def main():
         loc_name = st.text_input("Location name")
         state = st.selectbox("State", list(STATE_MAP.keys()))
 
-        if st.button("Search Location"):
+        if st.button("Search"):
             st.session_state.geo_results = geocode(loc_name, state)
 
         if st.session_state.geo_results:
             opts = [f"{r['name']} ({state})" for r in st.session_state.geo_results]
-            choice = st.selectbox("Select match", opts)
+            choice = st.selectbox("Select", opts)
 
-            if st.button("Save Selected Location"):
-                idx = opts.index(choice)
-                r = st.session_state.geo_results[idx]
+            if st.button("Save"):
+                r = st.session_state.geo_results[opts.index(choice)]
                 save_location(r["name"], r["lat"], r["lon"], r["state"])
-                st.success("Saved — refresh app")
+                st.success("Saved — refresh")
 
     # ---- ADMIN ----
-    with st.expander("Admin"):
+    if st.button("Admin Panel"):
+        st.session_state.admin_open = not st.session_state.admin_open
+
+    if st.session_state.admin_open:
+        st.markdown("### Admin")
         pwd = st.text_input("Password", type="password")
         if pwd == ADMIN_PASSWORD:
-            st.success("Admin unlocked")
-            st.write("Reports selected:", reports)
+            st.success("Unlocked")
+            st.write("Reports:", reports)
             st.write("Location:", location)
 
     st.markdown("---")
@@ -230,7 +249,7 @@ def main():
         files = list(dict.fromkeys(files))
 
         if not files:
-            log("❌ NO REPORTS GENERATED — CHECK WORKER OR API")
+            log("❌ NO REPORTS GENERATED — CHECK WORKER")
             st.error("No reports generated — see log")
             return
 
@@ -249,7 +268,7 @@ def main():
             st.write(f)
 
     st.markdown("---")
-    st.text_area("System Progress", st.session_state.log, height=300)
+    st.text_area("System Progress", st.session_state.log, height=250)
 
 
 if __name__ == "__main__":
