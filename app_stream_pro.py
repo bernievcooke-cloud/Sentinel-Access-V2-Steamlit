@@ -46,6 +46,8 @@ def default_state() -> dict[str, Any]:
         "log": f"[{now_ts()}] SYSTEM READY",
         "files": [],
         "geo_results": [],
+        "geo_choice": "",
+        "show_geo_results": False,
         "confirmed_reports": [],
         "selection_message": "",
         "location_after_save": "",
@@ -63,7 +65,6 @@ def default_state() -> dict[str, Any]:
         "trip_fuel_price": 2.00,
         "new_location_name": "",
         "new_location_state": "VIC",
-        "geo_choice": "",
     }
 
 
@@ -73,10 +74,8 @@ def init_state() -> None:
 
 
 def reset_app_state() -> None:
-    keep_keys = set()
     for key in list(st.session_state.keys()):
-        if key not in keep_keys:
-            del st.session_state[key]
+        del st.session_state[key]
     init_state()
 
 
@@ -592,7 +591,7 @@ def main() -> None:
         st.session_state["location_after_save"] = ""
 
     confirmed_reports = normalize_reports(st.session_state.get("confirmed_reports", []))
-    trip_mode_confirmed = "Trip Planner" in confirmed_reports
+    pending_reports_preview = normalize_reports(st.session_state.get("pending_reports", []))
 
     trip_points_preview = [
         st.session_state.get("trip_start", ""),
@@ -602,19 +601,21 @@ def main() -> None:
     ]
     trip_route_preview = [p for p in trip_points_preview if p and str(p).strip()]
 
+    has_trip_selected = "Trip Planner" in pending_reports_preview
+    has_standard_reports_selected = any(r in pending_reports_preview for r in ["Surf Report", "Sky & Moon Report", "Weather Report"])
+
     normal_ready = bool(
         st.session_state.get("user_name", "").strip()
         and st.session_state.get("user_email", "").strip()
-        and st.session_state.get("selected_location", "").strip()
-        and confirmed_reports
+        and (not has_standard_reports_selected or st.session_state.get("selected_location", "").strip())
+        and pending_reports_preview
     )
+
     trip_ready = bool(
-        st.session_state.get("user_name", "").strip()
-        and st.session_state.get("user_email", "").strip()
-        and len(trip_route_preview) >= 2
-        and confirmed_reports
+        (not has_trip_selected or len(trip_route_preview) >= 2)
     )
-    ready = trip_ready if trip_mode_confirmed else normal_ready
+
+    ready = bool(normal_ready and trip_ready)
 
     render_title()
 
@@ -644,17 +645,20 @@ def main() -> None:
         with loc_btn2:
             save_location_clicked = st.button("Save Selected Location", use_container_width=True)
 
-        geo_results = st.session_state.get("geo_results", [])
-        if geo_results:
-            option_labels = [
-                f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
-                for item in geo_results
-            ]
-            if option_labels:
-                current_choice = st.session_state.get("geo_choice", "")
-                if current_choice not in option_labels:
-                    st.session_state["geo_choice"] = option_labels[0]
-                st.selectbox("Select match", option_labels, key="geo_choice")
+        if st.session_state.get("show_geo_results", False):
+            geo_results = st.session_state.get("geo_results", [])
+            if geo_results:
+                option_labels = [
+                    f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                    for item in geo_results
+                ]
+                if option_labels:
+                    current_choice = st.session_state.get("geo_choice", "")
+                    if current_choice not in option_labels:
+                        st.session_state["geo_choice"] = option_labels[0]
+                    st.selectbox("Select match", option_labels, key="geo_choice")
+            else:
+                st.session_state["show_geo_results"] = False
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -675,19 +679,30 @@ def main() -> None:
     with right:
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
 
-        pending_reports = st.multiselect(
+        st.multiselect(
             "Select reports",
             REPORTS,
             key="pending_reports",
         )
 
-        pending_trip_mode = "Trip Planner" in pending_reports
+        pending_reports_live = normalize_reports(st.session_state.get("pending_reports", []))
+        pending_trip_mode = "Trip Planner" in pending_reports_live
+        pending_standard_mode = any(r in pending_reports_live for r in ["Surf Report", "Sky & Moon Report", "Weather Report"])
+
         location_label = "Not selected"
+
+        if pending_standard_mode or not pending_trip_mode:
+            st.selectbox(
+                "Location",
+                location_names if location_names else [""],
+                key="selected_location",
+            )
+
+        selected_normal_location = st.session_state.get("selected_location", "").strip()
 
         if pending_trip_mode:
             trip_location_options = [""] + location_names if location_names else [""]
             st.markdown('<div class="minor-heading">Trip route</div>', unsafe_allow_html=True)
-
             st.selectbox("Start location", trip_location_options, key="trip_start")
             st.selectbox("Destination 1", trip_location_options, key="trip_dest_1")
             st.selectbox("Destination 2", trip_location_options, key="trip_dest_2")
@@ -701,23 +716,25 @@ def main() -> None:
                 key="trip_fuel_price",
             )
 
-            trip_points = [
-                st.session_state.get("trip_start", ""),
-                st.session_state.get("trip_dest_1", ""),
-                st.session_state.get("trip_dest_2", ""),
-                st.session_state.get("trip_dest_3", ""),
-            ]
-            location_label = route_label_from_points(trip_points)
-        else:
-            st.selectbox(
-                "Location",
-                location_names if location_names else [""],
-                key="selected_location",
-            )
-            location_label = st.session_state.get("selected_location", "") or "Not selected"
+        preview_parts: list[str] = []
+        if pending_standard_mode:
+            preview_parts.append(selected_normal_location or "No main location selected")
 
-        st.session_state["preview_report"] = ", ".join(pending_reports) if pending_reports else "Not selected"
-        st.session_state["preview_location"] = location_label
+        trip_points = [
+            st.session_state.get("trip_start", ""),
+            st.session_state.get("trip_dest_1", ""),
+            st.session_state.get("trip_dest_2", ""),
+            st.session_state.get("trip_dest_3", ""),
+        ]
+        trip_route_label = route_label_from_points(trip_points)
+        if pending_trip_mode:
+            preview_parts.append(f"Trip: {trip_route_label}")
+
+        if preview_parts:
+            location_label = " | ".join(preview_parts)
+
+        st.session_state["preview_report"] = ", ".join(pending_reports_live) if pending_reports_live else "Not selected"
+        st.session_state["preview_location"] = location_label if location_label else "Not selected"
 
         st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
         info_box("Selected report", st.session_state.get("preview_report", "Not selected"))
@@ -741,6 +758,7 @@ def main() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     if search_location_clicked:
+        log("Admin search started")
         st.session_state["geo_results"] = geocode_location(
             st.session_state.get("new_location_name", ""),
             st.session_state.get("new_location_state", "VIC"),
@@ -752,14 +770,20 @@ def main() -> None:
                 for item in geo_results
             ]
             st.session_state["geo_choice"] = option_labels[0] if option_labels else ""
+            st.session_state["show_geo_results"] = True
+            log("Admin search complete: matches ready for selection")
         else:
+            st.session_state["geo_choice"] = ""
+            st.session_state["show_geo_results"] = False
             st.warning("No matches found.")
+            log("Admin search complete: no matches found")
         st.rerun()
 
     if save_location_clicked:
         geo_results = st.session_state.get("geo_results", [])
         if not geo_results:
             st.warning("Search first, then choose a match to save.")
+            log("Save location blocked: no search results available")
         else:
             option_labels = [
                 f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
@@ -768,6 +792,7 @@ def main() -> None:
             selected_match = st.session_state.get("geo_choice", "")
             if selected_match not in option_labels:
                 st.warning("Please choose a match to save.")
+                log("Save location blocked: no valid match selected")
             else:
                 idx = option_labels.index(selected_match)
                 chosen = geo_results[idx]
@@ -780,6 +805,7 @@ def main() -> None:
                 st.session_state["location_after_save"] = chosen["name"]
                 st.session_state["geo_results"] = []
                 st.session_state["geo_choice"] = ""
+                st.session_state["show_geo_results"] = False
                 st.session_state["selection_message"] = f"Location saved: {chosen['name']}"
                 log(f"Location saved: {chosen['name']} ({chosen['state']})")
                 st.rerun()
@@ -796,13 +822,28 @@ def main() -> None:
         st.rerun()
 
     if confirm_clicked:
-        st.session_state["confirmed_reports"] = list(st.session_state.get("pending_reports", []))
-        if st.session_state["confirmed_reports"]:
-            st.session_state["selection_message"] = f"Confirmed: {', '.join(st.session_state['confirmed_reports'])}"
-            log(f"Confirmed reports: {', '.join(st.session_state['confirmed_reports'])}")
+        reports_to_confirm = normalize_reports(st.session_state.get("pending_reports", []))
+        st.session_state["confirmed_reports"] = list(reports_to_confirm)
+
+        if reports_to_confirm:
+            st.session_state["selection_message"] = f"Confirmed: {', '.join(reports_to_confirm)}"
+            log(f"Confirmed reports: {', '.join(reports_to_confirm)}")
+
+            if any(r in reports_to_confirm for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]):
+                log(f"Confirmed main location: {st.session_state.get('selected_location', '').strip() or 'None'}")
+
+            if "Trip Planner" in reports_to_confirm:
+                trip_points_confirm = [
+                    st.session_state.get("trip_start", ""),
+                    st.session_state.get("trip_dest_1", ""),
+                    st.session_state.get("trip_dest_2", ""),
+                    st.session_state.get("trip_dest_3", ""),
+                ]
+                log(f"Confirmed trip route: {route_label_from_points(trip_points_confirm)}")
         else:
             st.session_state["selection_message"] = "No reports selected."
             log("Confirm selection pressed with no reports selected")
+
         st.rerun()
 
     if generate_clicked:
@@ -814,69 +855,82 @@ def main() -> None:
         log(f"Run folder: {run_dir}")
 
         selected_reports = normalize_reports(st.session_state.get("confirmed_reports", []))
-        log(f"Confirmed run set: {', '.join(selected_reports)}")
+        log(f"Confirmed run set: {', '.join(selected_reports) if selected_reports else 'None'}")
+
+        current_location = st.session_state.get("selected_location", "").strip()
+        log(f"Main report location: {current_location or 'None'}")
+
+        route_points = [
+            st.session_state.get("trip_start", ""),
+            st.session_state.get("trip_dest_1", ""),
+            st.session_state.get("trip_dest_2", ""),
+            st.session_state.get("trip_dest_3", ""),
+        ]
+        filtered_route_points = [p for p in route_points if p and str(p).strip()]
+        log(f"Trip route at run: {route_label_from_points(route_points)}")
 
         all_files: list[str] = []
-        email_location_label = st.session_state.get("selected_location", "Unknown location")
+        email_location_label = current_location or "Unknown location"
 
         if "Trip Planner" in selected_reports:
-            route_points = [
-                st.session_state.get("trip_start", ""),
-                st.session_state.get("trip_dest_1", ""),
-                st.session_state.get("trip_dest_2", ""),
-                st.session_state.get("trip_dest_3", ""),
-            ]
-            route_points = [p for p in route_points if p and str(p).strip()]
-            email_location_label = route_label_from_points(route_points)
-
+            log("Trip Planner selected for this run")
             ok, msg, trip_files = trip_planner(
-                route_points=route_points,
+                route_points=filtered_route_points,
                 fuel_type=st.session_state.get("trip_fuel_type", "Petrol"),
                 fuel_price=float(st.session_state.get("trip_fuel_price", 2.00)),
             )
             log(msg)
-            if ok:
+            if ok and trip_files:
                 all_files.extend(trip_files)
+            else:
+                log("Trip Planner produced no valid PDF")
 
         non_trip_reports = [r for r in selected_reports if r != "Trip Planner"]
 
         locations = load_locations()
 
         if non_trip_reports:
-            current_location = st.session_state.get("selected_location", "").strip()
-            payload = locations.get(current_location, {})
-
-            if not payload:
-                log(f"Selected location not found in locations.json: {current_location}")
-                st.error("Selected location was not found. Please refresh and try again.")
+            if not current_location:
+                log("No main location selected for non-trip reports")
+                st.error("Please select a main location for Surf / Sky / Weather reports.")
             else:
-                lat = float(payload["lat"])
-                lon = float(payload["lon"])
-                email_location_label = current_location
-                log(f"Resolved coords from locations.json: {lat}, {lon}")
+                payload = locations.get(current_location, {})
+                if not payload:
+                    log(f"Selected location not found in locations.json: {current_location}")
+                    st.error("Selected location was not found. Please refresh and try again.")
+                else:
+                    lat = float(payload["lat"])
+                    lon = float(payload["lon"])
+                    email_location_label = current_location
+                    log(f"Resolved coords from locations.json: {lat}, {lon}")
 
-                for report in non_trip_reports:
-                    before_count = len(all_files)
+                    for report in non_trip_reports:
+                        before_count = len(all_files)
 
-                    if report == "Surf Report":
-                        log(f"Running {report}")
-                        files = run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir)
+                        if report == "Surf Report":
+                            log("Starting Surf Report worker")
+                            files = run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir)
 
-                    elif report == "Sky & Moon Report":
-                        log(f"Running {report}")
-                        files = run_sky_moon_report(current_location, lat, lon, payload, run_dir)
+                        elif report == "Sky & Moon Report":
+                            log("Starting Sky & Moon Report worker")
+                            files = run_sky_moon_report(current_location, lat, lon, payload, run_dir)
 
-                    elif report == "Weather Report":
-                        log(f"Running {report}")
-                        files = run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir)
+                        elif report == "Weather Report":
+                            log("Starting Weather Report worker")
+                            files = run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir)
 
-                    else:
-                        files = []
+                        else:
+                            files = []
 
-                    all_files.extend(files)
+                        if files:
+                            log(f"{report} completed with {len(files)} PDF file(s)")
+                        else:
+                            log(f"{report} returned no PDF file(s)")
 
-                    if len(all_files) == before_count:
-                        log(f"No PDF captured for {report}")
+                        all_files.extend(files)
+
+                        if len(all_files) == before_count:
+                            log(f"No PDF captured for {report}")
 
         unique_files: list[str] = []
         for file_path in all_files:
@@ -884,11 +938,13 @@ def main() -> None:
                 unique_files.append(file_path)
 
         st.session_state["files"] = unique_files
+        log(f"Total valid PDFs captured: {len(unique_files)}")
 
         if not unique_files:
             log("❌ NO REPORTS GENERATED — CHECK WORKER")
             st.error("No reports generated — see System progress below.")
         else:
+            log("Attempting to send email with attachments")
             ok, message = send_reports(
                 st.session_state.get("user_email", "").strip(),
                 selected_reports,
