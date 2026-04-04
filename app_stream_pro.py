@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+/#!/usr/bin/env python3
 from __future__ import annotations
 
 import importlib
@@ -222,6 +222,24 @@ def geocode_location(name: str, state_code: str) -> list[dict[str, Any]]:
 
 
 
+def patch_weather_worker(mod) -> None:
+    if not hasattr(mod, "_parse_local_times"):
+        return
+
+    def _safe_parse_local_times(series, tz_name):
+        dt = mod.pd.to_datetime(series, errors="coerce")
+        if getattr(dt.dt, "tz", None) is None:
+            return dt
+        try:
+            tz = mod.ZoneInfo(tz_name)
+        except Exception:
+            tz = mod.ZoneInfo(getattr(mod, "DEFAULT_TZ", "Australia/Melbourne"))
+        return dt.dt.tz_convert(tz).dt.tz_localize(None)
+
+    mod._parse_local_times = _safe_parse_local_times
+
+
+
 def run_worker(
     module_name: str,
     location_name: str,
@@ -236,12 +254,14 @@ def run_worker(
         return []
 
     generate = getattr(mod, "generate_report")
-    output_dir = str(Path(run_dir) if run_dir else OUTPUTS)
+
+    if module_name == "core.weather_worker":
+        patch_weather_worker(mod)
 
     if module_name == "core.surf_worker":
+        state_hint = (payload or {}).get("state") or None
         attempts = [
-            (location_name, lat, lon, output_dir, log),
-            (location_name, lat, lon, output_dir),
+            (location_name, lat, lon, state_hint),
             (location_name, lat, lon),
         ]
     elif module_name == "core.weather_worker":
@@ -250,6 +270,7 @@ def run_worker(
             (location_name, lat, lon),
         ]
     else:
+        output_dir = str(Path(run_dir) if run_dir else OUTPUTS)
         attempts = [
             (location_name, [lat, lon], output_dir, log),
             (location_name, [lat, lon], output_dir),
