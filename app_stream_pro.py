@@ -553,14 +553,14 @@ def normalize_reports(confirmed_reports: list[str]) -> list[str]:
                     log(f"No PDF captured for {report}")
 
             unique_files: list[str] = []
-            for file_path in all_files:
+    for file_path in all_files:
                 if file_path not in unique_files:
                     unique_files.append(file_path)
 
-            if not unique_files:
+                if not unique_files:
                 log("❌ NO REPORTS GENERATED — CHECK WORKER")
                 st.error("No reports generated — see System Progress below")
-            else:
+                else:
                 ok, message = send_reports(st.session_state.get("user_email", ""), confirmed_reports, current_location, unique_files)
                 log(message)
                 st.session_state["files"] = unique_files
