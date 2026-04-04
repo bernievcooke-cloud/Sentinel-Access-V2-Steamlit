@@ -129,7 +129,16 @@ def run(module, loc, lat, lon):
         log(f"{module} missing")
         return []
 
-    attempts = [
+    # FIX: correct surf worker bad argument issue
+    if module == "core.surf_worker":
+        attempts = [
+            (loc, [lat, lon], str(OUTPUTS)),
+            (loc, lat, lon, str(OUTPUTS)),
+            (loc, [lat, lon]),
+            (loc, lat, lon),
+        ]
+    else:
+        attempts = [
         (loc, [lat, lon], str(OUTPUTS), log),
         (loc, [lat, lon], str(OUTPUTS)),
         (loc, lat, lon, str(OUTPUTS), log),
@@ -179,7 +188,8 @@ def main():
 
     st.markdown("""
     <style>
-    .stApp {background-color:#e6f0fa;}
+    .stApp {background-color:#e6f0fa;} 
+    .block-container {max-width:1200px; padding-top:1.2rem; padding-bottom:1rem}
     .block-container {max-width:1000px; padding-top:0.5rem}
     .input-box {background:#ffffff; padding:10px; border-radius:10px; border:1px solid #d0e2f2}
     label {font-size:15px !important; font-weight:600 !important;}
@@ -191,7 +201,7 @@ def main():
     locations = load_locations()
 
     # ---- INPUT ----
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns([1,1], gap="large")
 
     with c1:
         st.markdown("<div class='input-box'>", unsafe_allow_html=True)
@@ -205,6 +215,7 @@ def main():
         location = st.selectbox("Location", list(locations.keys()) or ["None"])
         st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
 
     # ---- REFRESH ----
@@ -282,6 +293,12 @@ def main():
         else: st.error(msg)
 
         st.session_state.files = files
+
+    # ---- LOG (always visible) ----
+    st.markdown("### System Progress")
+    st.text_area("", st.session_state.log, height=200)
+
+    st.markdown("---")
 
     # ---- OUTPUT ----
     if st.session_state.files:
