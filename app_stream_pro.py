@@ -660,6 +660,16 @@ def main() -> None:
         st.text_input("Email", key="user_email")
         st.markdown("</div>", unsafe_allow_html=True)
 
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        info_box("Admin function", "Default password: admin123")
+        st.text_input("Admin password", type="password", key="admin_password")
+        unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
+
+        st.markdown(
+            '<div class="panel-box"><div class="minor-heading">System progress</div>',
+            unsafe_allow_html=True,
+        )
+
     with right:
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
 
@@ -775,15 +785,6 @@ def main() -> None:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        info_box("Admin function", "Default password: admin123")
-        st.text_input("Admin password", type="password", key="admin_password")
-        unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
-
-        st.markdown(
-            '<div class="panel-box"><div class="minor-heading">System progress</div>',
-            unsafe_allow_html=True,
-        )
         st.text_area(
             "System Progress",
             value=st.session_state.get("log", ""),
