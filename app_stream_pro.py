@@ -744,35 +744,52 @@ def main() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        info_box("Admin function", "Enter admin password to manage locations")
+        info_box("Admin function", "Default password: admin123")
         st.text_input("Admin password", type="password", key="admin_password")
         unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
 
-        if st.session_state.get("admin_unlocked", False):
-            st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
-            st.text_input("Location name", key="new_location_name")
-            st.selectbox("State", list(STATE_MAP.keys()), key="new_location_state")
+        st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+        info_box("Add new location", "Visible at all times. Search and save activate after admin unlock.")
+        st.text_input(
+            "Location name",
+            key="new_location_name",
+            disabled=not st.session_state.get("admin_unlocked", False),
+        )
+        st.selectbox(
+            "State",
+            list(STATE_MAP.keys()),
+            key="new_location_state",
+            disabled=not st.session_state.get("admin_unlocked", False),
+        )
 
-            loc_btn1, loc_btn2 = st.columns(2, gap="small")
-            with loc_btn1:
-                search_location_clicked = st.button("Search Location", use_container_width=True)
-            with loc_btn2:
-                save_location_clicked = st.button("Save Selected Location", use_container_width=True)
+        loc_btn1, loc_btn2 = st.columns(2, gap="small")
+        with loc_btn1:
+            search_location_clicked = st.button(
+                "Search Location",
+                use_container_width=True,
+                disabled=not st.session_state.get("admin_unlocked", False),
+            )
+        with loc_btn2:
+            save_location_clicked = st.button(
+                "Save Selected Location",
+                use_container_width=True,
+                disabled=not st.session_state.get("admin_unlocked", False),
+            )
 
-            if st.session_state.get("show_geo_results", False):
-                geo_results = st.session_state.get("geo_results", [])
-                if geo_results:
-                    option_labels = [
-                        f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
-                        for item in geo_results
-                    ]
-                    if option_labels:
-                        current_choice = st.session_state.get("geo_choice", "")
-                        if current_choice not in option_labels:
-                            st.session_state["geo_choice"] = option_labels[0]
-                        st.selectbox("Select match", option_labels, key="geo_choice")
-                else:
-                    st.session_state["show_geo_results"] = False
+        if st.session_state.get("show_geo_results", False):
+            geo_results = st.session_state.get("geo_results", [])
+            if geo_results:
+                option_labels = [
+                    f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                    for item in geo_results
+                ]
+                if option_labels:
+                    current_choice = st.session_state.get("geo_choice", "")
+                    if current_choice not in option_labels:
+                        st.session_state["geo_choice"] = option_labels[0]
+                    st.selectbox("Select match", option_labels, key="geo_choice")
+            else:
+                st.session_state["show_geo_results"] = False
 
         st.markdown("</div>", unsafe_allow_html=True)
 
