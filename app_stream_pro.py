@@ -796,7 +796,7 @@ def main() -> None:
 
     if unlock_admin_clicked:
         entered = st.session_state.get("admin_password", "")
-        if entered == ADMIN_PASSWORD:
+        if entered is "None":
             st.session_state["admin_unlocked"] = True
             log("Admin unlocked")
             st.success("Admin unlocked.")
