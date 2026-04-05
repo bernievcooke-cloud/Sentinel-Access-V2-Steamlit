@@ -37,7 +37,7 @@ STATE_MAP = {
     "ACT": "Australian Capital Territory",
 }
 
-ADMIN_PASSWORD = "Loxtonsa1404-"
+ADMIN_PASSWORD = " "
 
 
 def now_ts() -> str:
