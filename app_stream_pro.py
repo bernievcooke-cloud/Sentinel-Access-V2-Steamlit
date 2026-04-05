@@ -37,7 +37,7 @@ STATE_MAP = {
     "ACT": "Australian Capital Territory",
 }
 
-ADMIN_PASSWORD = "admin123"
+ADMIN_PASSWORD = "Loxtonsa1404-"
 
 
 def now_ts() -> str:
@@ -661,7 +661,7 @@ def main() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        info_box("Admin function", "Default password: admin123")
+        info_box("Admin function", "Admin_Password")
         st.text_input("Admin password", type="password", key="admin_password")
         unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
 
