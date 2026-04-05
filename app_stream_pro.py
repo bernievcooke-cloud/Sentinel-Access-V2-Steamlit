@@ -669,7 +669,16 @@ def main() -> None:
             '<div class="panel-box"><div class="minor-heading">System progress</div>',
             unsafe_allow_html=True,
         )
-
+        st.text_area(
+            "System Progress",
+            value=st.session_state.get("log", ""),
+            height=300,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+        clear_log_clicked = st.button("Clear progress", use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    
     with right:
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
 
@@ -783,16 +792,6 @@ def main() -> None:
             else:
                 st.session_state["show_geo_results"] = False
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.text_area(
-            "System Progress",
-            value=st.session_state.get("log", ""),
-            height=300,
-            disabled=True,
-            label_visibility="collapsed",
-        )
-        clear_log_clicked = st.button("Clear progress", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     if unlock_admin_clicked:
