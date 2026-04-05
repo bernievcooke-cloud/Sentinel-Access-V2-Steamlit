@@ -97,7 +97,6 @@ def default_state() -> dict[str, Any]:
         "new_location_state": "VIC",
         "admin_password": "",
         "admin_unlocked": False,
-        "widget_refresh_pending": False,
     }
 
 
@@ -121,10 +120,6 @@ def log(message: str) -> None:
         st.session_state["log"] = f"{current}\n[{now_ts()}] {message}"
     else:
         st.session_state["log"] = f"[{now_ts()}] {message}"
-
-
-def request_widget_refresh() -> None:
-    st.session_state["widget_refresh_pending"] = True
 
 
 # =========================================================
@@ -673,13 +668,6 @@ def main() -> None:
     init_state()
     apply_styles()
 
-    if st.session_state.get("widget_refresh_pending"):
-        st.session_state["widget_refresh_pending"] = False
-        st.rerun()
-
-    if not st.session_state.get("pending_reports"):
-        st.session_state["pending_reports"] = list(st.session_state.get("confirmed_reports", []))
-
     locations = load_locations()
     location_names = list(locations.keys())
 
@@ -732,7 +720,6 @@ def main() -> None:
         "Select reports",
         REPORTS,
         key="pending_reports",
-        on_change=request_widget_refresh,
     )
     pending_reports_live = normalize_reports(st.session_state.get("pending_reports", []))
     pending_trip_mode = "Trip Planner" in pending_reports_live
@@ -745,11 +732,18 @@ def main() -> None:
 
     st.markdown('<div class="panel-box">', unsafe_allow_html=True)
     if pending_standard_mode or not pending_trip_mode:
+        location_options = location_names if location_names else [""]
+        if location_options:
+            current_loc = st.session_state.get("selected_location", "")
+            if current_loc not in location_options:
+                if current_loc == "":
+                    pass
+                else:
+                    st.session_state["selected_location"] = ""
         st.selectbox(
             "Select location",
-            location_names if location_names else [""],
+            location_options,
             key="selected_location",
-            on_change=request_widget_refresh,
         )
 
     selected_normal_location = st.session_state.get("selected_location", "").strip()
@@ -757,19 +751,17 @@ def main() -> None:
     if pending_trip_mode:
         trip_location_options = [""] + location_names if location_names else [""]
         st.markdown('<div class="minor-heading">Trip route</div>', unsafe_allow_html=True)
-
-        st.selectbox("Start location", trip_location_options, key="trip_start", on_change=request_widget_refresh)
-        st.selectbox("Destination 1", trip_location_options, key="trip_dest_1", on_change=request_widget_refresh)
-        st.selectbox("Destination 2", trip_location_options, key="trip_dest_2", on_change=request_widget_refresh)
-        st.selectbox("Destination 3", trip_location_options, key="trip_dest_3", on_change=request_widget_refresh)
+        st.selectbox("Start location", trip_location_options, key="trip_start")
+        st.selectbox("Destination 1", trip_location_options, key="trip_dest_1")
+        st.selectbox("Destination 2", trip_location_options, key="trip_dest_2")
+        st.selectbox("Destination 3", trip_location_options, key="trip_dest_3")
 
         st.markdown('<div class="minor-heading">Trip settings</div>', unsafe_allow_html=True)
-        st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type", on_change=request_widget_refresh)
+        st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type")
         st.selectbox(
             "Fuel price per litre",
             [round(x / 100, 2) for x in range(140, 401, 5)],
             key="trip_fuel_price",
-            on_change=request_widget_refresh,
         )
 
     preview_parts: list[str] = []
@@ -812,7 +804,6 @@ def main() -> None:
         "State",
         list(STATE_MAP.keys()),
         key="new_location_state",
-        on_change=request_widget_refresh,
     )
 
     loc_btn1, loc_btn2 = st.columns(2, gap="small")
@@ -831,13 +822,11 @@ def main() -> None:
             current_choice = st.session_state.get("geo_choice", "")
             if option_labels and current_choice not in option_labels:
                 st.session_state["geo_choice"] = option_labels[0]
-            if option_labels:
-                st.selectbox(
-                    "Select match",
-                    option_labels,
-                    key="geo_choice",
-                    on_change=request_widget_refresh,
-                )
+            st.selectbox(
+                "Select match",
+                option_labels,
+                key="geo_choice",
+            )
         else:
             st.session_state["show_geo_results"] = False
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1033,7 +1022,6 @@ def main() -> None:
                     log("Trip Planner produced no valid PDF")
 
             non_trip_reports = [r for r in selected_reports if r != "Trip Planner"]
-
             locations = load_locations()
 
             if non_trip_reports:
