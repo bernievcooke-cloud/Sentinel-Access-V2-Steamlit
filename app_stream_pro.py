@@ -368,14 +368,10 @@ def run_worker(
     # Module-specific call patterns only.
     # This avoids passing scrambled argument orders into workers.
     if module_name == "core.surf_worker":
-        attempts: list[tuple[Any, ...]] = [
-            (location_name, [float(lat), float(lon)], output_dir, log),
-            (location_name, [float(lat), float(lon)], output_dir),
-            (location_name, [float(lat), float(lon)], log),
-            (location_name, [float(lat), float(lon)]),
-            (location_name, float(lat), float(lon), output_dir),
-            (location_name, float(lat), float(lon)),
-        ]
+        attempts = [
+        (location_name, float(lat), float(lon)),
+        (location_name, float(lat), float(lon), None),
+    ]
     elif module_name == "core.weather_worker":
         attempts = [
             (location_name, float(lat), float(lon), log),
