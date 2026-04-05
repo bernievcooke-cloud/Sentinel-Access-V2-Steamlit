@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import csv
 import importlib
 import json
+import os
 import shutil
 import tempfile
 import uuid
@@ -37,7 +39,12 @@ STATE_MAP = {
     "ACT": "Australian Capital Territory",
 }
 
-ADMIN_PASSWORD: "None"
+USAGE_LOG_PATH = CONFIG / "usage_log.csv"
+DEFAULT_ADMIN_PASSWORD = "admin123"
+
+
+def ensure_output_dir() -> None:
+    CONFIG.mkdir(parents=True, exist_ok=True)
 
 
 def now_ts() -> str:
@@ -350,7 +357,6 @@ def run_worker(
     log(f"{module_name} failed: incompatible generate_report signature")
     return []
 
-
 def run_sky_moon_report(
     location_name: str,
     lat: float,
@@ -464,7 +470,6 @@ def send_reports(email: str, reports: list[str], location_name: str, file_paths:
 
     return False, "Email sender found, but no compatible send function matched."
 
-
 def apply_styles() -> None:
     st.markdown(
         """
@@ -562,13 +567,11 @@ def apply_styles() -> None:
         unsafe_allow_html=True,
     )
 
-
 def route_label_from_points(points: list[str]) -> str:
     filtered = [p for p in points if p and str(p).strip()]
     if not filtered:
         return "Not selected"
     return " → ".join(filtered)
-
 
 def normalize_reports(reports: list[str]) -> list[str]:
     deduped: list[str] = []
@@ -576,7 +579,6 @@ def normalize_reports(reports: list[str]) -> list[str]:
         if report not in deduped:
             deduped.append(report)
     return deduped
-
 
 def info_box(label: str, value: str) -> None:
     st.markdown(
@@ -589,7 +591,6 @@ def info_box(label: str, value: str) -> None:
         unsafe_allow_html=True,
     )
 
-
 def render_title() -> None:
     st.markdown(
         f"""
@@ -599,7 +600,6 @@ def render_title() -> None:
         """,
         unsafe_allow_html=True,
     )
-
 
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, layout="wide")
@@ -658,25 +658,6 @@ def main() -> None:
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         st.text_input("Name", key="user_name")
         st.text_input("Email", key="user_email")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        info_box("Admin function", "None")    
-        st.text_input("Admin password", type="password", key="admin_password")
-        unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
-
-        st.markdown(
-            '<div class="panel-box"><div class="minor-heading">System progress</div>',
-            unsafe_allow_html=True,
-        )
-        st.text_area(
-            "System Progress",
-            value=st.session_state.get("log", ""),
-            height=300,
-            disabled=True,
-            label_visibility="collapsed",
-        )
-        clear_log_clicked = st.button("Clear progress", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
     with right:
@@ -793,18 +774,6 @@ def main() -> None:
                 st.session_state["show_geo_results"] = False
 
         st.markdown("</div>", unsafe_allow_html=True)
-
-    if unlock_admin_clicked:
-        entered = st.session_state.get("admin_password", "")
-        if entered is "None":
-            st.session_state["admin_unlocked"] = True
-            log("Admin unlocked")
-            st.success("Admin unlocked.")
-        else:
-            st.session_state["admin_unlocked"] = False
-            log("Admin unlock failed")
-            st.error("Incorrect admin password.")
-        st.rerun()
 
     if search_location_clicked:
         log("Location search started")
@@ -1024,6 +993,66 @@ def main() -> None:
             st.write(item)
         st.markdown("</div>", unsafe_allow_html=True)
 
+        st.markdown(
+            '<div class="panel-box"><div class="minor-heading">System progress</div>',
+            unsafe_allow_html=True,
+        )
+        st.text_area(
+            "System Progress",
+            value=st.session_state.get("log", ""),
+            height=300,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+        clear_log_clicked = st.button("Clear progress", use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+def append_usage_log(user_name: str, user_email: str, report_type: str, location_info: str):
+    ensure_output_dir()
+    exists = os.path.exists(USAGE_LOG_PATH)
+    with open(USAGE_LOG_PATH, "a", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        if not exists:
+            writer.writerow(["timestamp", "user_name", "user_email", "report_type", "location_info"])
+        writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_name.strip(), user_email.strip(), report_type.strip(), location_info.strip()])
+
+
+def read_usage_log() -> list[dict[str, str]]:
+    if not os.path.exists(USAGE_LOG_PATH):
+        return []
+    try:
+        with open(USAGE_LOG_PATH, "r", newline="", encoding="utf-8") as fh:
+            return [dict(row) for row in csv.DictReader(fh)]
+    except Exception:
+        return []
+
+
+def usage_summary(rows: list[dict[str, str]]):
+    report_counts: dict[str, int] = {}
+    location_counts: dict[str, int] = {}
+    for row in rows:
+        report = str(row.get("report_type", "")).strip() or "(blank)"
+        location = str(row.get("location_info", "")).strip() or "(blank)"
+        report_counts[report] = report_counts.get(report, 0) + 1
+        location_counts[location] = location_counts.get(location, 0) + 1
+    return (
+        sorted(report_counts.items(), key=lambda x: (-x[1], x[0].lower())),
+        sorted(location_counts.items(), key=lambda x: (-x[1], x[0].lower())),
+    )
+
+def get_admin_password() -> str:
+    try:
+        secret_pw = st.secrets.get("ADMIN_PASSWORD", "")
+        if secret_pw:
+            return str(secret_pw)
+    except Exception:
+        pass
+    return os.getenv("APP_STREAM_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+
+st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+info_box("Admin function", "None")    
+st.text_input("ADMIN_PASSWORD", type="password", key="ADMIN_PASSWORD")
+unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True) 
 
 if __name__ == "__main__":
     main()
