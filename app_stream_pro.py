@@ -188,12 +188,38 @@ def collect_new_pdfs(before_run: set[str], run_dir: str | Path) -> list[str]:
 
 
 def cleanup_generated_files(file_paths: list[str], run_dir: str | Path | None = None) -> None:
+    run_root = Path(run_dir).resolve() if run_dir else None
+    temp_root = Path(tempfile.gettempdir()).resolve()
+
     for file_path in file_paths:
         try:
-            p = Path(file_path)
-            if p.exists() and p.is_file():
+            p = Path(file_path).resolve()
+            if not p.exists() or not p.is_file():
+                continue
+
+            # Only delete files that are inside the temp run folder
+            # or inside the system temp directory.
+            safe_to_delete = False
+            if run_root:
+                try:
+                    p.relative_to(run_root)
+                    safe_to_delete = True
+                except ValueError:
+                    pass
+
+            if not safe_to_delete:
+                try:
+                    p.relative_to(temp_root)
+                    safe_to_delete = True
+                except ValueError:
+                    pass
+
+            if safe_to_delete:
                 p.unlink()
                 log(f"Removed temporary file: {p}")
+            else:
+                log(f"Kept non-temporary file: {p}")
+
         except Exception as exc:
             log(f"Cleanup warning for {file_path}: {exc}")
 
@@ -339,26 +365,35 @@ def run_worker(
     generate = getattr(mod, "generate_report")
     output_dir = str(Path(run_dir)) if run_dir else str(make_run_dir())
 
-    if module_name in {"core.surf_worker", "core.weather_worker"}:
+    # Module-specific call patterns only.
+    # This avoids passing scrambled argument orders into workers.
+    if module_name == "core.surf_worker":
         attempts: list[tuple[Any, ...]] = [
-            (location_name, float(lat), float(lon), output_dir, log),
+            (location_name, [float(lat), float(lon)], output_dir, log),
+            (location_name, [float(lat), float(lon)], output_dir),
+            (location_name, [float(lat), float(lon)], log),
+            (location_name, [float(lat), float(lon)]),
+            (location_name, float(lat), float(lon), output_dir),
+            (location_name, float(lat), float(lon)),
+        ]
+    elif module_name == "core.weather_worker":
+        attempts = [
             (location_name, float(lat), float(lon), log),
             (location_name, float(lat), float(lon), output_dir),
             (location_name, float(lat), float(lon)),
             (location_name, [float(lat), float(lon)], output_dir, log),
-            (location_name, [float(lat), float(lon)], log),
             (location_name, [float(lat), float(lon)], output_dir),
             (location_name, [float(lat), float(lon)]),
         ]
     else:
         attempts = [
             (location_name, [float(lat), float(lon)], output_dir, log),
-            (location_name, float(lat), float(lon), output_dir, log),
-            (location_name, [float(lat), float(lon)], log),
-            (location_name, float(lat), float(lon), log),
             (location_name, [float(lat), float(lon)], output_dir),
-            (location_name, float(lat), float(lon), output_dir),
+            (location_name, [float(lat), float(lon)], log),
             (location_name, [float(lat), float(lon)]),
+            (location_name, float(lat), float(lon), output_dir, log),
+            (location_name, float(lat), float(lon), output_dir),
+            (location_name, float(lat), float(lon), log),
             (location_name, float(lat), float(lon)),
         ]
 
@@ -366,13 +401,17 @@ def run_worker(
         try:
             before_files = set(scan_dir(run_dir or output_dir))
             result = generate(*args)
+
             files = extract_pdf_paths(result)
             if not files:
                 files = collect_new_pdfs(before_files, run_dir or output_dir)
-            if files:
-                for file_path in files:
+
+            valid_files = [f for f in files if valid_pdf(f)]
+            if valid_files:
+                for file_path in valid_files:
                     log(f"PDF OK: {file_path}")
-                return files
+                return valid_files
+
         except TypeError as exc:
             log(f"{module_name} signature mismatch on args {args}: {exc}")
             continue
