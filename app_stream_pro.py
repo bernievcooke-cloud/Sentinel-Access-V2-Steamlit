@@ -661,7 +661,7 @@ def main() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        info_box("Admin function")
+        info_box("Admin function", "None")    
         st.text_input("Admin password", type="password", key="admin_password")
         unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
 
