@@ -741,14 +741,7 @@ def main() -> None:
             if ready:
                 st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        info_box("Admin function", "Default password: admin123")
-        st.text_input("Admin password", type="password", key="admin_password")
-        unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
-
-        st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
         info_box("Add new location", "Search and save new locations for reports")
         st.text_input("Location name", key="new_location_name")
         st.selectbox("State", list(STATE_MAP.keys()), key="new_location_state")
@@ -781,6 +774,11 @@ def main() -> None:
                 st.session_state["show_geo_results"] = False
 
         st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        info_box("Admin function", "Default password: admin123")
+        st.text_input("Admin password", type="password", key="admin_password")
+        unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
 
         st.markdown(
             '<div class="panel-box"><div class="minor-heading">System progress</div>',
