@@ -16,7 +16,6 @@ import requests
 import streamlit as st
 
 APP_TITLE = "Surf Sky Weather Trip Planning"
-CONFIG_LOCATIONS = os.path.join("config", "locations.json")
 
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "config"
@@ -271,8 +270,8 @@ def save_location(name: str, lat: float, lon: float, state: str) -> None:
                     manager.add_location(final_name, float(lat), float(lon), state=state)
                 except TypeError:
                     manager.add_location(final_name, float(lat), float(lon))
-        except Exception:
-            pass
+        except Exception as exc:
+            log(f"LocationManager sync skipped: {exc}")
 
 
 def geocode_location(name: str, state_code: str) -> list[dict[str, Any]]:
@@ -612,26 +611,6 @@ def apply_styles() -> None:
             color: #284866;
             margin: 0.05rem 0 0.3rem 0;
         }
-        .section-spacer {
-            height: 0.12rem;
-        }
-        div[data-testid="stTextInput"] label,
-        div[data-testid="stSelectbox"] label,
-        div[data-testid="stMultiSelect"] label,
-        div[data-testid="stTextArea"] label {
-            font-size: 0.96rem !important;
-            font-weight: 700 !important;
-            color: #284866 !important;
-        }
-        div[data-testid="stTextInput"] input,
-        div[data-testid="stTextArea"] textarea,
-        div[data-testid="stSelectbox"] > div,
-        div[data-testid="stMultiSelect"] > div {
-            border-radius: 12px !important;
-            border: 1px solid #bfd3e6 !important;
-            background: #ffffff !important;
-            color: #17324d !important;
-        }
         .green-ready button {
             background: linear-gradient(135deg, #1faa63, #159251) !important;
             color: white !important;
@@ -710,7 +689,6 @@ def main() -> None:
         st.session_state["location_after_save"] = ""
 
     pending_reports_preview = normalize_reports(st.session_state.get("pending_reports", []))
-
     trip_points_preview = [
         st.session_state.get("trip_start", ""),
         st.session_state.get("trip_dest_1", ""),
@@ -744,41 +722,28 @@ def main() -> None:
     unlock_admin_clicked = False
     lock_admin_clicked = False
 
-    # -------------------------------------------------
-    # USER DETAILS
-    # -------------------------------------------------
     st.markdown('<div class="panel-box">', unsafe_allow_html=True)
     st.text_input("Name", key="user_name")
     st.text_input("Email", key="user_email")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------------------------------------
-    # SELECT REPORT
-    # -------------------------------------------------
     st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-
     st.multiselect(
         "Select reports",
         REPORTS,
         key="pending_reports",
         on_change=request_widget_refresh,
     )
-
     pending_reports_live = normalize_reports(st.session_state.get("pending_reports", []))
     pending_trip_mode = "Trip Planner" in pending_reports_live
     pending_standard_mode = any(
         r in pending_reports_live for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]
     )
-
     st.session_state["preview_report"] = ", ".join(pending_reports_live) if pending_reports_live else "Not selected"
     info_box("Selected report", st.session_state.get("preview_report", "Not selected"))
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------------------------------------
-    # SELECT LOCATION
-    # -------------------------------------------------
     st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-
     if pending_standard_mode or not pending_trip_mode:
         st.selectbox(
             "Select location",
@@ -793,38 +758,13 @@ def main() -> None:
         trip_location_options = [""] + location_names if location_names else [""]
         st.markdown('<div class="minor-heading">Trip route</div>', unsafe_allow_html=True)
 
-        st.selectbox(
-            "Start location",
-            trip_location_options,
-            key="trip_start",
-            on_change=request_widget_refresh,
-        )
-        st.selectbox(
-            "Destination 1",
-            trip_location_options,
-            key="trip_dest_1",
-            on_change=request_widget_refresh,
-        )
-        st.selectbox(
-            "Destination 2",
-            trip_location_options,
-            key="trip_dest_2",
-            on_change=request_widget_refresh,
-        )
-        st.selectbox(
-            "Destination 3",
-            trip_location_options,
-            key="trip_dest_3",
-            on_change=request_widget_refresh,
-        )
+        st.selectbox("Start location", trip_location_options, key="trip_start", on_change=request_widget_refresh)
+        st.selectbox("Destination 1", trip_location_options, key="trip_dest_1", on_change=request_widget_refresh)
+        st.selectbox("Destination 2", trip_location_options, key="trip_dest_2", on_change=request_widget_refresh)
+        st.selectbox("Destination 3", trip_location_options, key="trip_dest_3", on_change=request_widget_refresh)
 
         st.markdown('<div class="minor-heading">Trip settings</div>', unsafe_allow_html=True)
-        st.selectbox(
-            "Fuel type",
-            ["Petrol", "Diesel"],
-            key="trip_fuel_type",
-            on_change=request_widget_refresh,
-        )
+        st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type", on_change=request_widget_refresh)
         st.selectbox(
             "Fuel price per litre",
             [round(x / 100, 2) for x in range(140, 401, 5)],
@@ -851,33 +791,22 @@ def main() -> None:
     info_box("Selected location(s)", st.session_state.get("preview_location", "Not selected"))
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------------------------------------
-    # ACTION BUTTONS
-    # -------------------------------------------------
     st.markdown('<div class="panel-box">', unsafe_allow_html=True)
     btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="small")
-
     with btn_col1:
         refresh_clicked = st.button("Refresh Page", use_container_width=True)
-
     with btn_col2:
         confirm_clicked = st.button("Confirm Selection", use_container_width=True)
-
     with btn_col3:
         if ready:
             st.markdown('<div class="green-ready">', unsafe_allow_html=True)
         generate_clicked = st.button("Generate Reports", use_container_width=True, disabled=not ready)
         if ready:
             st.markdown("</div>", unsafe_allow_html=True)
-
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------------------------------------
-    # ADD NEW LOCATION
-    # -------------------------------------------------
     st.markdown('<div class="panel-box">', unsafe_allow_html=True)
     info_box("Add new location", "Search and save new locations for reports")
-
     st.text_input("Location name", key="new_location_name")
     st.selectbox(
         "State",
@@ -899,10 +828,10 @@ def main() -> None:
                 f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
                 for item in geo_results
             ]
+            current_choice = st.session_state.get("geo_choice", "")
+            if option_labels and current_choice not in option_labels:
+                st.session_state["geo_choice"] = option_labels[0]
             if option_labels:
-                current_choice = st.session_state.get("geo_choice", "")
-                if current_choice not in option_labels:
-                    st.session_state["geo_choice"] = option_labels[0]
                 st.selectbox(
                     "Select match",
                     option_labels,
@@ -911,16 +840,10 @@ def main() -> None:
                 )
         else:
             st.session_state["show_geo_results"] = False
-
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------------------------------------
-    # SYSTEM PROGRESS
-    # -------------------------------------------------
-    st.markdown(
-        '<div class="panel-box"><div class="minor-heading">System progress</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+    st.markdown('<div class="minor-heading">System progress</div>', unsafe_allow_html=True)
     st.text_area(
         "System Progress",
         value=st.session_state.get("log", ""),
@@ -931,12 +854,8 @@ def main() -> None:
     clear_log_clicked = st.button("Clear progress", use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------------------------------------
-    # ADMIN - FORCED LAST
-    # -------------------------------------------------
     st.markdown('<div class="panel-box">', unsafe_allow_html=True)
     info_box("Admin function", "Usage logs and controls")
-
     st.text_input("Admin password", type="password", key="admin_password")
     unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
 
@@ -947,7 +866,6 @@ def main() -> None:
         rows = read_usage_log()
         if rows:
             report_counts, location_counts = usage_summary(rows)
-
             st.markdown('<div class="minor-heading">Usage log</div>', unsafe_allow_html=True)
             st.dataframe(rows, use_container_width=True)
 
@@ -960,12 +878,8 @@ def main() -> None:
                 st.write(f"{label}: {count}")
         else:
             st.info("No usage data yet")
-
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------------------------------------------
-    # POST-UI ACTIONS
-    # -------------------------------------------------
     if search_location_clicked:
         log("Location search started")
         st.session_state["geo_results"] = geocode_location(
@@ -1144,15 +1058,12 @@ def main() -> None:
                             if report == "Surf Report":
                                 log("Starting Surf Report worker")
                                 files = run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir)
-
                             elif report == "Sky & Moon Report":
                                 log("Starting Sky & Moon Report worker")
                                 files = run_sky_moon_report(current_location, lat, lon, payload, run_dir)
-
                             elif report == "Weather Report":
                                 log("Starting Weather Report worker")
                                 files = run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir)
-
                             else:
                                 files = []
 
