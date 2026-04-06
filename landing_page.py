@@ -14,75 +14,27 @@ def apply_styles() -> None:
     st.markdown(
         """
         <style>
-        .stApp {
-            background:
-                radial-gradient(circle at top left, rgba(53, 93, 145, 0.18) 0%, rgba(53, 93, 145, 0.00) 28%),
-                radial-gradient(circle at top right, rgba(39, 174, 96, 0.10) 0%, rgba(39, 174, 96, 0.00) 22%),
-                linear-gradient(180deg, #0b1e34 0%, #102844 52%, #0e2138 100%);
-        }
+.stApp {
+    background:
+        radial-gradient(circle at top left, rgba(53, 93, 145, 0.14) 0%, rgba(53, 93, 145, 0.00) 28%),
+        radial-gradient(circle at top right, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.00) 22%),
+        linear-gradient(180deg, #163252 0%, #1d4268 52%, #173755 100%);
+}
 
-        .block-container {
-            max-width: 1040px;
-            padding-top: 2.2rem;
-            padding-bottom: 2rem;
-        }
+.hero-wrap {
+    background: linear-gradient(180deg, rgba(38, 64, 96, 0.96) 0%, rgba(31, 55, 84, 0.98) 100%);
+    border: 1px solid rgba(170, 200, 230, 0.24);
+}
 
-        .hero-wrap {
-            background: linear-gradient(180deg, rgba(22, 42, 68, 0.96) 0%, rgba(18, 36, 58, 0.98) 100%);
-            border: 1px solid rgba(145, 182, 219, 0.22);
-            border-radius: 24px;
-            padding: 1.55rem 1.45rem 1.35rem 1.45rem;
-            margin-bottom: 1.05rem;
-            box-shadow:
-                0 10px 30px rgba(0, 0, 0, 0.22),
-                0 0 0 1px rgba(255, 255, 255, 0.02) inset,
-                0 0 26px rgba(98, 164, 255, 0.08);
-        }
+.section-card {
+    background: linear-gradient(180deg, rgba(34, 58, 88, 0.94) 0%, rgba(28, 49, 75, 0.98) 100%);
+    border: 1px solid rgba(170, 200, 230, 0.18);
+}
 
-        .hero-title {
-            font-size: 2.25rem;
-            font-weight: 800;
-            color: #e6f0ff;
-            line-height: 1.05;
-            letter-spacing: -0.02em;
-            margin-bottom: 0.28rem;
-        }
-
-        .hero-subtitle {
-            font-size: 1.02rem;
-            font-weight: 600;
-            color: #9bb7d6;
-            margin-bottom: 0.85rem;
-        }
-
-        .hero-text {
-            font-size: 1rem;
-            color: #c7d9ee;
-            line-height: 1.68;
-        }
-
-        .section-card {
-            background: linear-gradient(180deg, rgba(20, 38, 61, 0.94) 0%, rgba(17, 33, 53, 0.98) 100%);
-            border: 1px solid rgba(145, 182, 219, 0.18);
-            border-radius: 20px;
-            padding: 0.95rem 1rem 0.9rem 1rem;
-            margin-bottom: 0.95rem;
-            box-shadow:
-                0 8px 24px rgba(0, 0, 0, 0.18),
-                0 0 0 1px rgba(255, 255, 255, 0.02) inset;
-        }
-
-        .section-heading {
-            font-size: 1.06rem;
-            font-weight: 800;
-            color: #e6f0ff;
-            margin-bottom: 0.2rem;
-            letter-spacing: 0.01em;
-        }
-
-        .feature-card {
-            background: linear-gradient(180deg, rgba(27, 49, 78, 0.98) 0%, rgba(22, 42, 68, 0.98) 100%);
-            border: 1px solid rgba(155, 183, 214, 0.18);
+.feature-card {
+    background: linear-gradient(180deg, rgba(45, 73, 108, 0.98) 0%, rgba(37, 63, 95, 0.98) 100%);
+    border: 1px solid rgba(170, 200, 230, 0.20);
+}
             border-radius: 18px;
             padding: 1rem 1rem 0.9rem 1rem;
             min-height: 158px;
