@@ -1,10 +1,9 @@
-requests==2.31.0
-pandas>=2.2,<2.4
-numpy>=1.26,<2.0
-matplotlib>=3.8,<3.11
-reportlab>=4.0,<5
 streamlit>=1.55,<1.56
-python-dotenv==1.0.0
-stripe>=11,<12
+requests
+pandas
+numpy
+matplotlib
+reportlab
 astral
-st-gsheets-connection
+stripe
+python-dotenv
