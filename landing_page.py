@@ -233,10 +233,10 @@ def hero_section() -> None:
             <div class="hero-title">{APP_TITLE}</div>
             <div class="hero-subtitle">{APP_SUBTITLE}</div>
             <div class="hero-text">
-                Sentinel Access is a mobile-friendly reporting platform designed to generate
+                Surf Sky Weather Trip Planner is a mobile-friendly reporting platform designed to generate
                 location-based PDF reports and deliver them directly by email.
                 Choose your report type, select your location, and launch the Sentinel system
-                for surf, sky, weather, moon, and trip planning insights.
+                for surf, sky and moon, weather and trip planning insights.
             </div>
         </div>
         """,
