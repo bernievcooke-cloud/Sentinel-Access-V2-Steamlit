@@ -96,7 +96,7 @@ def apply_styles() -> None:
         }
 
         .cta-top-wrap {
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.9rem;
         }
 
         .stLinkButton > a {
@@ -127,18 +127,18 @@ def apply_styles() -> None:
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 0.8rem;
-            margin-bottom: 0.85rem;
+            margin-bottom: 0.6rem;
         }
 
         .report-card {
             background: linear-gradient(180deg, rgba(41, 70, 104, 0.96) 0%, rgba(35, 61, 91, 0.98) 100%);
             border: 1px solid rgba(190, 215, 240, 0.22);
             border-radius: 18px;
-            padding: 0.8rem;
+            padding: 0.9rem;
             box-shadow:
                 0 8px 22px rgba(0, 0, 0, 0.14),
                 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
-            min-height: 205px;
+            min-height: 245px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -147,7 +147,7 @@ def apply_styles() -> None:
         .report-inner {
             display: flex;
             flex-direction: column;
-            gap: 0.7rem;
+            gap: 0.8rem;
             height: 100%;
         }
 
@@ -156,23 +156,23 @@ def apply_styles() -> None:
         }
 
         .report-title {
-            font-size: 0.96rem;
+            font-size: 0.98rem;
             font-weight: 800;
             color: #f4f8ff;
-            margin-bottom: 0.32rem;
+            margin-bottom: 0.36rem;
             text-align: left;
         }
 
         .report-body {
-            font-size: 0.84rem;
+            font-size: 0.85rem;
             color: #eef5fc;
-            line-height: 1.42;
+            line-height: 1.48;
             text-align: left;
         }
 
         .report-image {
             width: 100%;
-            height: 92px;
+            height: 112px;
             object-fit: cover;
             border-radius: 14px;
             border: 1px solid rgba(220, 235, 250, 0.22);
@@ -182,7 +182,7 @@ def apply_styles() -> None:
 
         .report-image-fallback {
             width: 100%;
-            height: 92px;
+            height: 112px;
             border-radius: 14px;
             border: 1px solid rgba(220, 235, 250, 0.22);
             display: flex;
@@ -192,24 +192,6 @@ def apply_styles() -> None:
             background: rgba(255, 255, 255, 0.08);
             font-size: 0.82rem;
             font-weight: 700;
-        }
-
-        .bottom-start {
-            background: linear-gradient(180deg, rgba(41, 70, 104, 0.96) 0%, rgba(35, 61, 91, 0.98) 100%);
-            border: 1px solid rgba(190, 215, 240, 0.22);
-            border-radius: 18px;
-            padding: 0.9rem 1rem;
-            margin-top: 0.25rem;
-            box-shadow:
-                0 8px 22px rgba(0, 0, 0, 0.14),
-                0 0 0 1px rgba(255, 255, 255, 0.02) inset;
-        }
-
-        .bottom-start-title {
-            font-size: 1rem;
-            font-weight: 800;
-            color: #f4f8ff;
-            text-align: center;
         }
 
         .footer-note {
@@ -317,17 +299,6 @@ def reports_section() -> None:
     st.markdown(html, unsafe_allow_html=True)
 
 
-def bottom_start_section() -> None:
-    st.markdown(
-        """
-        <div class="bottom-start">
-            <div class="bottom-start-title">Start Sentinel</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def footer() -> None:
     st.markdown(
         """
@@ -349,7 +320,6 @@ def main() -> None:
     hero_section()
     top_button()
     reports_section()
-    bottom_start_section()
     footer()
 
 
