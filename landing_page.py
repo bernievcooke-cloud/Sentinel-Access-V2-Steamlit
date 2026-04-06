@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from pathlib import Path
+import base64
 import streamlit as st
 
 # -------------------------------------------------
@@ -9,6 +11,22 @@ SENTINEL_APP_URL = "https://sentinel-access-v2-steamlit-3m8hjtrpznzu3skhp3inqh.s
 APP_TITLE = "Surf • Sky • Weather • Trip Planner"
 APP_SUBTITLE = "Professional report delivery dashboard"
 
+# -------------------------------------------------
+# IMAGE FILES
+# Put these in the SAME folder as this script
+# -------------------------------------------------
+ROOT = Path(__file__).resolve().parent
+SURF_IMAGE = ROOT / "surf_report.jpg"
+SKY_IMAGE = ROOT / "sky_moon_report.jpg"
+WEATHER_IMAGE = ROOT / "weather_report.jpg"
+TRIP_IMAGE = ROOT / "trip_planner.jpg"
+
+
+def img_to_base64(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return base64.b64encode(path.read_bytes()).decode("utf-8")
+
 
 def apply_styles() -> None:
     st.markdown(
@@ -16,13 +34,13 @@ def apply_styles() -> None:
         <style>
         .stApp {
             background:
-                radial-gradient(circle at top left, rgba(90, 140, 195, 0.16) 0%, rgba(90, 140, 195, 0.00) 28%),
-                radial-gradient(circle at top right, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.00) 24%),
+                radial-gradient(circle at top left, rgba(90, 140, 195, 0.12) 0%, rgba(90, 140, 195, 0.00) 28%),
+                radial-gradient(circle at top right, rgba(39, 174, 96, 0.06) 0%, rgba(39, 174, 96, 0.00) 24%),
                 linear-gradient(180deg, #183454 0%, #22486f 52%, #1b3c5d 100%);
         }
 
         .block-container {
-            max-width: 1040px;
+            max-width: 1080px;
             padding-top: 2.2rem;
             padding-bottom: 2rem;
         }
@@ -60,52 +78,80 @@ def apply_styles() -> None:
             line-height: 1.68;
         }
 
-        .section-card {
+        .report-grid-gap {
+            height: 0.9rem;
+        }
+
+        .report-card {
             background: linear-gradient(180deg, rgba(41, 70, 104, 0.96) 0%, rgba(35, 61, 91, 0.98) 100%);
             border: 1px solid rgba(190, 215, 240, 0.22);
             border-radius: 20px;
-            padding: 0.95rem 1rem 0.9rem 1rem;
+            padding: 1rem;
             margin-bottom: 0.95rem;
             box-shadow:
                 0 8px 22px rgba(0, 0, 0, 0.14),
                 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
         }
 
-        .section-heading {
-            font-size: 1.06rem;
-            font-weight: 800;
-            color: #f4f8ff;
-            margin-bottom: 0.2rem;
-            letter-spacing: 0.01em;
+        .report-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
         }
 
-        .feature-card {
-            background: linear-gradient(180deg, rgba(61, 95, 136, 0.98) 0%, rgba(51, 82, 119, 0.98) 100%);
-            border: 1px solid rgba(190, 215, 240, 0.24);
-            border-radius: 18px;
-            padding: 1rem 1rem 0.9rem 1rem;
-            min-height: 158px;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
-            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        .report-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            text-align: left;
         }
 
-        .feature-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(220, 235, 250, 0.34);
-            box-shadow: 0 12px 22px rgba(0, 0, 0, 0.16);
-        }
-
-        .feature-title {
-            font-size: 1rem;
+        .report-title {
+            font-size: 1.02rem;
             font-weight: 800;
             color: #f4f8ff;
             margin-bottom: 0.42rem;
+            text-align: left;
         }
 
-        .feature-text {
+        .report-body {
             font-size: 0.95rem;
             color: #eef5fc;
             line-height: 1.58;
+            text-align: left;
+        }
+
+        .report-image-wrap {
+            flex: 0 0 220px;
+            width: 220px;
+        }
+
+        .report-image {
+            width: 220px;
+            height: 130px;
+            object-fit: cover;
+            border-radius: 16px;
+            border: 1px solid rgba(220, 235, 250, 0.22);
+            display: block;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+        }
+
+        .cta-card {
+            background: linear-gradient(180deg, rgba(41, 70, 104, 0.96) 0%, rgba(35, 61, 91, 0.98) 100%);
+            border: 1px solid rgba(190, 215, 240, 0.22);
+            border-radius: 20px;
+            padding: 0.95rem 1rem 0.95rem 1rem;
+            margin-top: 0.6rem;
+            box-shadow:
+                0 8px 22px rgba(0, 0, 0, 0.14),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+        }
+
+        .cta-heading {
+            font-size: 1.06rem;
+            font-weight: 800;
+            color: #f4f8ff;
+            margin-bottom: 0.35rem;
         }
 
         .cta-note {
@@ -118,7 +164,7 @@ def apply_styles() -> None:
             text-align: center;
             font-size: 0.88rem;
             color: #c8dbee;
-            padding-top: 0.45rem;
+            padding-top: 0.75rem;
         }
 
         .stLinkButton > a {
@@ -145,22 +191,20 @@ def apply_styles() -> None:
             border-color: #19a65a !important;
         }
 
-        .stLinkButton > a:active {
-            transform: translateY(0px);
-        }
-
-        div[data-testid="stHorizontalBlock"] > div {
-            gap: 0.9rem !important;
-        }
-
-        @media (max-width: 768px) {
-            .block-container {
-                padding-top: 1.4rem;
+        @media (max-width: 860px) {
+            .report-inner {
+                flex-direction: column;
+                align-items: stretch;
             }
 
-            .hero-wrap {
-                padding: 1.2rem 1rem 1.1rem 1rem;
-                border-radius: 20px;
+            .report-image-wrap {
+                flex: none;
+                width: 100%;
+            }
+
+            .report-image {
+                width: 100%;
+                height: 190px;
             }
 
             .hero-title {
@@ -169,10 +213,6 @@ def apply_styles() -> None:
 
             .hero-subtitle {
                 font-size: 0.96rem;
-            }
-
-            .feature-card {
-                min-height: auto;
             }
         }
         </style>
@@ -199,82 +239,68 @@ def hero_section() -> None:
     )
 
 
-def description_section() -> None:
+def report_card(title: str, text: str, image_path: Path) -> None:
+    img_b64 = img_to_base64(image_path)
+
+    if img_b64:
+        image_html = f'<img class="report-image" src="data:image/jpeg;base64,{img_b64}" alt="{title}">'
+    else:
+        image_html = (
+            '<div class="report-image" '
+            'style="display:flex;align-items:center;justify-content:center;'
+            'color:#d4e4f4;background:rgba(255,255,255,0.08);font-weight:700;">'
+            'Image not found</div>'
+        )
+
     st.markdown(
-        """
-        <div class="section-card">
-            <div class="section-heading">Available Reports</div>
+        f"""
+        <div class="report-card">
+            <div class="report-inner">
+                <div class="report-text">
+                    <div class="report-title">{title}</div>
+                    <div class="report-body">{text}</div>
+                </div>
+                <div class="report-image-wrap">
+                    {image_html}
+                </div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    col1, col2 = st.columns(2, gap="medium")
 
-    with col1:
-        st.markdown(
-            """
-            <div class="feature-card">
-                <div class="feature-title">Surf Report</div>
-                <div class="feature-text">
-                    Daily surf conditions, next best day guidance, and weekly outlooks
-                    covering swell, wind, and tide intelligence.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+def reports_section() -> None:
+    report_card(
+        "Surf Report",
+        "Daily surf conditions, next best day guidance, and weekly outlooks covering swell, wind, and tide intelligence.",
+        SURF_IMAGE,
+    )
 
-        st.markdown("<div style='height:0.85rem;'></div>", unsafe_allow_html=True)
+    report_card(
+        "Sky & Moon Report",
+        "Built for photographers and night-sky viewing, including day and night clarity, best viewing windows, moon phase tracking, and lunar events.",
+        SKY_IMAGE,
+    )
 
-        st.markdown(
-            """
-            <div class="feature-card">
-                <div class="feature-title">Weather Report</div>
-                <div class="feature-text">
-                    Daily and weekly forecast views with temperature, conditions,
-                    and weather alert summaries for your selected location.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    report_card(
+        "Weather Report",
+        "Daily and weekly forecast views with temperature, conditions, and weather alert summaries for your selected location.",
+        WEATHER_IMAGE,
+    )
 
-    with col2:
-        st.markdown(
-            """
-            <div class="feature-card">
-                <div class="feature-title">Sky & Moon Report</div>
-                <div class="feature-text">
-                    Built for photographers and night-sky viewing, including day and night
-                    clarity, best viewing windows, moon phase tracking, and lunar events.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown("<div style='height:0.85rem;'></div>", unsafe_allow_html=True)
-
-        st.markdown(
-            """
-            <div class="feature-card">
-                <div class="feature-title">Trip Planner</div>
-                <div class="feature-text">
-                    Route planning with a start point, multiple destinations,
-                    fuel usage estimates, and trip cost guidance.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    report_card(
+        "Trip Planner",
+        "Route planning with a start point, multiple destinations, fuel usage estimates, and trip cost guidance.",
+        TRIP_IMAGE,
+    )
 
 
 def cta_section() -> None:
     st.markdown(
         """
-        <div class="section-card">
-            <div class="section-heading">Start Sentinel</div>
+        <div class="cta-card">
+            <div class="cta-heading">Start Sentinel</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -311,10 +337,9 @@ def main() -> None:
     )
     apply_styles()
     hero_section()
-    description_section()
+    reports_section()
     st.markdown("<div style='height:0.45rem;'></div>", unsafe_allow_html=True)
     cta_section()
-    st.markdown("<div style='height:0.75rem;'></div>", unsafe_allow_html=True)
     footer()
 
 
