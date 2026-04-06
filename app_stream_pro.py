@@ -79,6 +79,7 @@ def default_state() -> dict[str, Any]:
         "geo_choice": "",
         "show_geo_results": False,
         "confirmed_reports": [],
+        "confirmed_signature": "",
         "selection_message": "",
         "location_after_save": "",
         "preview_report": "Not selected",
@@ -197,8 +198,6 @@ def cleanup_generated_files(file_paths: list[str], run_dir: str | Path | None = 
             if not p.exists() or not p.is_file():
                 continue
 
-            # Only delete files that are inside the temp run folder
-            # or inside the system temp directory.
             safe_to_delete = False
             if run_root:
                 try:
@@ -365,13 +364,11 @@ def run_worker(
     generate = getattr(mod, "generate_report")
     output_dir = str(Path(run_dir)) if run_dir else str(make_run_dir())
 
-    # Module-specific call patterns only.
-    # This avoids passing scrambled argument orders into workers.
     if module_name == "core.surf_worker":
         attempts = [
-        (location_name, float(lat), float(lon)),
-        (location_name, float(lat), float(lon), None),
-    ]
+            (location_name, float(lat), float(lon)),
+            (location_name, float(lat), float(lon), None),
+        ]
     elif module_name == "core.weather_worker":
         attempts = [
             (location_name, float(lat), float(lon), log),
@@ -490,8 +487,8 @@ def trip_planner(route_points: list[str], fuel_type: str, fuel_price: float):
             log(f"PDF OK: {pdf_path}")
             return True, "Trip report generated.", [pdf_path]
         return False, "Trip report failed to generate.", []
-    except Exception as e:
-        return False, f"Trip error: {e}", []
+    except Exception as exc:
+        return False, f"Trip error: {exc}", []
 
 
 def send_reports(email: str, reports: list[str], location_name: str, file_paths: list[str]) -> tuple[bool, str]:
@@ -583,22 +580,16 @@ def apply_styles() -> None:
     st.markdown(
         """
         <style>
-        /* =======================================================
-           GLOBAL BACKGROUND (matches .toml)
-        ======================================================= */
         .stApp {
             background: linear-gradient(180deg, #dceaf7 0%, #eaf2fb 100%);
         }
 
         .block-container {
             max-width: 920px;
-            padding-top: 2.1rem;
-            padding-bottom: 1.2rem;
+            padding-top: 2.0rem;
+            padding-bottom: 1.4rem;
         }
 
-        /* =======================================================
-           TITLE CARD
-        ======================================================= */
         .title-wrap {
             background: #ffffff;
             border: 1px solid #bfd3e6;
@@ -616,26 +607,29 @@ def apply_styles() -> None:
             line-height: 1.1;
         }
 
-        /* =======================================================
-           MAIN PANELS
-        ======================================================= */
         .panel-box {
             background: #ffffff;
             border: 1px solid #bfd3e6;
             border-radius: 16px;
-            padding: 0.9rem 0.95rem 0.85rem 0.95rem;
-            margin-bottom: 0.85rem;
+            padding: 0.95rem 1rem 0.9rem 1rem;
+            margin-bottom: 0.9rem;
             box-shadow: 0 3px 12px rgba(23, 50, 77, 0.07);
         }
 
-        /* =======================================================
-           INFO / SUMMARY BOXES
-        ======================================================= */
+        .button-row {
+            background: #ffffff;
+            border: 1px solid #bfd3e6;
+            border-radius: 16px;
+            padding: 0.95rem 1rem 0.9rem 1rem;
+            margin-bottom: 0.9rem;
+            box-shadow: 0 3px 12px rgba(23, 50, 77, 0.07);
+        }
+
         .compact-box {
             background: #f8fbff;
             border: 1px solid #d5e2ef;
             border-radius: 14px;
-            padding: 0.55rem 0.75rem;
+            padding: 0.6rem 0.8rem;
             margin-bottom: 0.55rem;
         }
 
@@ -645,89 +639,85 @@ def apply_styles() -> None:
             text-transform: uppercase;
             letter-spacing: 0.08em;
             color: #4b6785;
-            margin-bottom: 0.15rem;
+            margin-bottom: 0.18rem;
         }
 
         .compact-value {
             font-size: 0.96rem;
             font-weight: 800;
             color: #17324D;
-            line-height: 1.2;
+            line-height: 1.25;
         }
 
-        /* =======================================================
-           SECTION HEADINGS
-        ======================================================= */
         .minor-heading {
             font-size: 0.92rem;
             font-weight: 800;
             color: #284866;
-            margin: 0.05rem 0 0.3rem 0;
+            margin: 0.08rem 0 0.35rem 0;
         }
 
-        /* =======================================================
-           INPUT FIELDS (fix readability issues)
-        ======================================================= */
-        input, textarea, .stTextInput input, .stTextArea textarea {
+        .button-note {
+            font-size: 0.82rem;
+            color: #5a7693;
+            margin-top: 0.5rem;
+        }
+
+        label, p, div {
+            color: #17324D;
+        }
+
+        .stTextInput input,
+        .stTextArea textarea,
+        .stNumberInput input,
+        div[data-baseweb="select"] > div,
+        .stMultiSelect [data-baseweb="select"] > div {
             background-color: #ffffff !important;
             color: #17324D !important;
+            border-radius: 12px !important;
         }
 
-        label {
-            color: #17324D !important;
-            font-weight: 600 !important;
+        .stTextArea textarea {
+            font-family: Consolas, "Courier New", monospace !important;
+            font-size: 0.88rem !important;
+            line-height: 1.45 !important;
+            border: 1px solid #cbdceb !important;
+            box-shadow: inset 0 1px 2px rgba(23, 50, 77, 0.04) !important;
         }
 
-        /* =======================================================
-           DROPDOWNS (important fix)
-        ======================================================= */
-        div[data-baseweb="select"] > div {
-            background-color: #ffffff !important;
-            color: #17324D !important;
-        }
-
-        /* =======================================================
-           BUTTONS (match primaryColor)
-        ======================================================= */
         .stButton button {
-            height: 2.6rem;
+            height: 2.7rem;
             border-radius: 12px !important;
             font-weight: 800 !important;
-            background: linear-gradient(135deg, #1FAA63, #159251);
-            color: white;
-            border: 1px solid #14874b;
+            border: 1px solid #b8ccdf !important;
+            background: linear-gradient(180deg, #f8fbff 0%, #edf4fb 100%) !important;
+            color: #17324D !important;
+            box-shadow: 0 2px 8px rgba(23, 50, 77, 0.05);
         }
 
         .stButton button:hover {
-            border-color: #1aa85c;
-            box-shadow: 0 4px 14px rgba(31, 170, 99, 0.18);
+            border-color: #9eb8d1 !important;
+            background: linear-gradient(180deg, #ffffff 0%, #eef5fc 100%) !important;
+            color: #17324D !important;
         }
 
-        /* =======================================================
-           READY STATE (Generate button turns green)
-        ======================================================= */
+        .green-ready .stButton button,
         .green-ready button {
             background: linear-gradient(135deg, #1FAA63, #159251) !important;
-            color: white !important;
+            color: #ffffff !important;
             border: 1px solid #14874b !important;
-            box-shadow: 0 4px 14px rgba(31, 170, 99, 0.18);
+            box-shadow: 0 6px 16px rgba(31, 170, 99, 0.22) !important;
         }
 
-        /* =======================================================
-           TEXT AREA (System Progress)
-        ======================================================= */
-        textarea {
-            background-color: #ffffff !important;
-            color: #17324D !important;
-            border-radius: 12px !important;
+        .green-ready .stButton button:hover,
+        .green-ready button:hover {
+            background: linear-gradient(135deg, #24b56c, #179a56) !important;
+            color: #ffffff !important;
+            border: 1px solid #14874b !important;
         }
 
-        /* =======================================================
-           SMALL MOBILE TWEAK
-        ======================================================= */
         @media (max-width: 768px) {
             .title-main {
-                font-size: 1.6rem;
+                font-size: 1.65rem;
             }
         }
         </style>
@@ -811,7 +801,34 @@ def main() -> None:
         and pending_reports_preview
     )
     trip_ready = bool(not has_trip_selected or len(trip_route_preview) >= 2)
-    ready = bool(normal_ready and trip_ready)
+    form_ready = bool(normal_ready and trip_ready)
+
+    current_signature = json.dumps(
+        {
+            "reports": normalize_reports(st.session_state.get("pending_reports", [])),
+            "selected_location": st.session_state.get("selected_location", "").strip(),
+            "trip_start": st.session_state.get("trip_start", "").strip(),
+            "trip_dest_1": st.session_state.get("trip_dest_1", "").strip(),
+            "trip_dest_2": st.session_state.get("trip_dest_2", "").strip(),
+            "trip_dest_3": st.session_state.get("trip_dest_3", "").strip(),
+            "trip_fuel_type": st.session_state.get("trip_fuel_type", "Petrol"),
+            "trip_fuel_price": str(st.session_state.get("trip_fuel_price", 2.00)),
+            "user_name": st.session_state.get("user_name", "").strip(),
+            "user_email": st.session_state.get("user_email", "").strip(),
+        },
+        sort_keys=True,
+    )
+
+    confirmed_signature = st.session_state.get("confirmed_signature", "")
+    confirmed_reports = normalize_reports(st.session_state.get("confirmed_reports", []))
+    confirmed_match = bool(
+        confirmed_signature
+        and confirmed_signature == current_signature
+        and confirmed_reports
+    )
+
+    can_confirm = form_ready
+    can_generate = bool(form_ready and confirmed_match)
 
     render_title()
 
@@ -824,164 +841,195 @@ def main() -> None:
     unlock_admin_clicked = False
     lock_admin_clicked = False
 
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    st.text_input("Name", key="user_name")
-    st.text_input("Email", key="user_email")
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        st.text_input("Name", key="user_name")
+        st.text_input("Email", key="user_email")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    st.multiselect(
-        "Select reports",
-        REPORTS,
-        key="pending_reports",
-    )
-    pending_reports_live = normalize_reports(st.session_state.get("pending_reports", []))
-    pending_trip_mode = "Trip Planner" in pending_reports_live
-    pending_standard_mode = any(
-        r in pending_reports_live for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]
-    )
-    st.session_state["preview_report"] = ", ".join(pending_reports_live) if pending_reports_live else "Not selected"
-    info_box("Selected report", st.session_state.get("preview_report", "Not selected"))
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        st.multiselect(
+            "Select reports",
+            REPORTS,
+            key="pending_reports",
+        )
+        pending_reports_live = normalize_reports(st.session_state.get("pending_reports", []))
+        pending_trip_mode = "Trip Planner" in pending_reports_live
+        pending_standard_mode = any(
+            r in pending_reports_live for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]
+        )
+        st.session_state["preview_report"] = ", ".join(pending_reports_live) if pending_reports_live else "Not selected"
+        info_box("Selected report", st.session_state.get("preview_report", "Not selected"))
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    if pending_standard_mode or not pending_trip_mode:
-        location_options = location_names if location_names else [""]
-        if location_options:
+    with st.container():
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+
+        if pending_standard_mode or not pending_trip_mode:
+            location_options = location_names if location_names else [""]
             current_loc = st.session_state.get("selected_location", "")
-            if current_loc not in location_options:
-                if current_loc == "":
-                    pass
-                else:
-                    st.session_state["selected_location"] = ""
-        st.selectbox(
-            "Select location",
-            location_options,
-            key="selected_location",
-        )
+            if current_loc not in location_options and current_loc != "":
+                st.session_state["selected_location"] = ""
 
-    selected_normal_location = st.session_state.get("selected_location", "").strip()
-
-    if pending_trip_mode:
-        trip_location_options = [""] + location_names if location_names else [""]
-        st.markdown('<div class="minor-heading">Trip route</div>', unsafe_allow_html=True)
-        st.selectbox("Start location", trip_location_options, key="trip_start")
-        st.selectbox("Destination 1", trip_location_options, key="trip_dest_1")
-        st.selectbox("Destination 2", trip_location_options, key="trip_dest_2")
-        st.selectbox("Destination 3", trip_location_options, key="trip_dest_3")
-
-        st.markdown('<div class="minor-heading">Trip settings</div>', unsafe_allow_html=True)
-        st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type")
-        st.selectbox(
-            "Fuel price per litre",
-            [round(x / 100, 2) for x in range(140, 401, 5)],
-            key="trip_fuel_price",
-        )
-
-    preview_parts: list[str] = []
-    if pending_standard_mode:
-        preview_parts.append(selected_normal_location or "No main location selected")
-
-    trip_points = [
-        st.session_state.get("trip_start", ""),
-        st.session_state.get("trip_dest_1", ""),
-        st.session_state.get("trip_dest_2", ""),
-        st.session_state.get("trip_dest_3", ""),
-    ]
-    trip_route_label = route_label_from_points(trip_points)
-    if pending_trip_mode:
-        preview_parts.append(f"Trip: {trip_route_label}")
-
-    location_label = " | ".join(preview_parts) if preview_parts else "Not selected"
-    st.session_state["preview_location"] = location_label
-    info_box("Selected location(s)", st.session_state.get("preview_location", "Not selected"))
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="small")
-    with btn_col1:
-        refresh_clicked = st.button("Refresh Page", use_container_width=True)
-    with btn_col2:
-        confirm_clicked = st.button("Confirm Selection", use_container_width=True)
-    with btn_col3:
-        if ready:
-            st.markdown('<div class="green-ready">', unsafe_allow_html=True)
-        generate_clicked = st.button("Generate Reports", use_container_width=True, disabled=not ready)
-        if ready:
-            st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    info_box("Add new location", "Search and save new locations for reports")
-    st.text_input("Location name", key="new_location_name")
-    st.selectbox(
-        "State",
-        list(STATE_MAP.keys()),
-        key="new_location_state",
-    )
-
-    loc_btn1, loc_btn2 = st.columns(2, gap="small")
-    with loc_btn1:
-        search_location_clicked = st.button("Search Location", use_container_width=True)
-    with loc_btn2:
-        save_location_clicked = st.button("Save Selected Location", use_container_width=True)
-
-    if st.session_state.get("show_geo_results", False):
-        geo_results = st.session_state.get("geo_results", [])
-        if geo_results:
-            option_labels = [
-                f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
-                for item in geo_results
-            ]
-            current_choice = st.session_state.get("geo_choice", "")
-            if option_labels and current_choice not in option_labels:
-                st.session_state["geo_choice"] = option_labels[0]
             st.selectbox(
-                "Select match",
-                option_labels,
-                key="geo_choice",
+                "Select location",
+                location_options,
+                key="selected_location",
+            )
+
+        selected_normal_location = st.session_state.get("selected_location", "").strip()
+
+        if pending_trip_mode:
+            trip_location_options = [""] + location_names if location_names else [""]
+            st.markdown('<div class="minor-heading">Trip settings</div>', unsafe_allow_html=True)
+            st.selectbox("Start location", trip_location_options, key="trip_start")
+            st.selectbox("Destination 1", trip_location_options, key="trip_dest_1")
+            st.selectbox("Destination 2", trip_location_options, key="trip_dest_2")
+            st.selectbox("Destination 3", trip_location_options, key="trip_dest_3")
+            st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type")
+            st.selectbox(
+                "Fuel price per litre",
+                [round(x / 100, 2) for x in range(140, 401, 5)],
+                key="trip_fuel_price",
+            )
+
+        preview_parts: list[str] = []
+        if pending_standard_mode:
+            preview_parts.append(selected_normal_location or "No main location selected")
+
+        trip_points = [
+            st.session_state.get("trip_start", ""),
+            st.session_state.get("trip_dest_1", ""),
+            st.session_state.get("trip_dest_2", ""),
+            st.session_state.get("trip_dest_3", ""),
+        ]
+        trip_route_label = route_label_from_points(trip_points)
+        if pending_trip_mode:
+            preview_parts.append(f"Trip: {trip_route_label}")
+
+        location_label = " | ".join(preview_parts) if preview_parts else "Not selected"
+        st.session_state["preview_location"] = location_label
+        info_box("Selected location(s)", st.session_state.get("preview_location", "Not selected"))
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with st.container():
+        st.markdown('<div class="button-row">', unsafe_allow_html=True)
+        btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="small")
+
+        with btn_col1:
+            refresh_clicked = st.button("Refresh Page", use_container_width=True)
+
+        with btn_col2:
+            confirm_clicked = st.button(
+                "Confirm Selection",
+                use_container_width=True,
+                disabled=not can_confirm,
+            )
+
+        with btn_col3:
+            if can_generate:
+                st.markdown('<div class="green-ready">', unsafe_allow_html=True)
+            generate_clicked = st.button(
+                "Generate Reports",
+                use_container_width=True,
+                disabled=not can_generate,
+            )
+            if can_generate:
+                st.markdown("</div>", unsafe_allow_html=True)
+
+        if not form_ready:
+            st.markdown(
+                '<div class="button-note">Complete all required fields before confirming.</div>',
+                unsafe_allow_html=True,
+            )
+        elif form_ready and not confirmed_match:
+            st.markdown(
+                '<div class="button-note">Selections are ready. Press <b>Confirm Selection</b> to activate Generate Reports.</div>',
+                unsafe_allow_html=True,
             )
         else:
-            st.session_state["show_geo_results"] = False
-    st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown(
+                '<div class="button-note">Selections confirmed. Generate Reports is ready.</div>',
+                unsafe_allow_html=True,
+            )
 
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    st.markdown('<div class="minor-heading">System progress</div>', unsafe_allow_html=True)
-    st.text_area(
-        "System Progress",
-        value=st.session_state.get("log", ""),
-        height=300,
-        disabled=True,
-        label_visibility="collapsed",
-    )
-    clear_log_clicked = st.button("Clear progress", use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    info_box("Admin function", "Usage logs and controls")
-    st.text_input("Admin password", type="password", key="admin_password")
-    unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
+    with st.container():
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        info_box("Add new location", "Search and save new locations for reports")
+        st.text_input("Location name", key="new_location_name")
+        st.selectbox(
+            "State",
+            list(STATE_MAP.keys()),
+            key="new_location_state",
+        )
 
-    if st.session_state.get("admin_unlocked"):
-        st.success("Admin unlocked")
-        lock_admin_clicked = st.button("Lock Admin", use_container_width=True)
+        loc_btn1, loc_btn2 = st.columns(2, gap="small")
+        with loc_btn1:
+            search_location_clicked = st.button("Search Location", use_container_width=True)
+        with loc_btn2:
+            save_location_clicked = st.button("Save Selected Location", use_container_width=True)
 
-        rows = read_usage_log()
-        if rows:
-            report_counts, location_counts = usage_summary(rows)
-            st.markdown('<div class="minor-heading">Usage log</div>', unsafe_allow_html=True)
-            st.dataframe(rows, use_container_width=True)
+        if st.session_state.get("show_geo_results", False):
+            geo_results = st.session_state.get("geo_results", [])
+            if geo_results:
+                option_labels = [
+                    f"{item['name']} ({item['state']}) — {float(item['lat']):.5f}, {float(item['lon']):.5f}"
+                    for item in geo_results
+                ]
+                current_choice = st.session_state.get("geo_choice", "")
+                if option_labels and current_choice not in option_labels:
+                    st.session_state["geo_choice"] = option_labels[0]
+                st.selectbox(
+                    "Select match",
+                    option_labels,
+                    key="geo_choice",
+                )
+            else:
+                st.session_state["show_geo_results"] = False
+        st.markdown("</div>", unsafe_allow_html=True)
 
-            st.markdown('<div class="minor-heading">Report summary</div>', unsafe_allow_html=True)
-            for label, count in report_counts:
-                st.write(f"{label}: {count}")
+    with st.container():
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        st.markdown('<div class="minor-heading">System progress</div>', unsafe_allow_html=True)
+        st.text_area(
+            "System Progress",
+            value=st.session_state.get("log", ""),
+            height=300,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+        clear_log_clicked = st.button("Clear progress", use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-            st.markdown('<div class="minor-heading">Location summary</div>', unsafe_allow_html=True)
-            for label, count in location_counts:
-                st.write(f"{label}: {count}")
-        else:
-            st.info("No usage data yet")
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+        info_box("Admin function", "Usage logs and controls")
+        st.text_input("Admin password", type="password", key="admin_password")
+        unlock_admin_clicked = st.button("Unlock Admin", use_container_width=True)
+
+        if st.session_state.get("admin_unlocked"):
+            st.success("Admin unlocked")
+            lock_admin_clicked = st.button("Lock Admin", use_container_width=True)
+
+            rows = read_usage_log()
+            if rows:
+                report_counts, location_counts = usage_summary(rows)
+                st.markdown('<div class="minor-heading">Usage log</div>', unsafe_allow_html=True)
+                st.dataframe(rows, use_container_width=True)
+
+                st.markdown('<div class="minor-heading">Report summary</div>', unsafe_allow_html=True)
+                for label, count in report_counts:
+                    st.write(f"{label}: {count}")
+
+                st.markdown('<div class="minor-heading">Location summary</div>', unsafe_allow_html=True)
+                for label, count in location_counts:
+                    st.write(f"{label}: {count}")
+            else:
+                st.info("No usage data yet")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if search_location_clicked:
         log("Location search started")
@@ -1065,6 +1113,7 @@ def main() -> None:
     if confirm_clicked:
         reports_to_confirm = normalize_reports(st.session_state.get("pending_reports", []))
         st.session_state["confirmed_reports"] = list(reports_to_confirm)
+        st.session_state["confirmed_signature"] = current_signature
 
         if reports_to_confirm:
             st.session_state["selection_message"] = f"Confirmed: {', '.join(reports_to_confirm)}"
@@ -1085,6 +1134,7 @@ def main() -> None:
                 log(f"Confirmed fuel price: ${float(st.session_state.get('trip_fuel_price', 2.00)):.2f}/L")
         else:
             st.session_state["selection_message"] = "No reports selected."
+            st.session_state["confirmed_signature"] = ""
             log("Confirm selection pressed with no reports selected")
 
         st.rerun()
@@ -1110,125 +1160,93 @@ def main() -> None:
             st.session_state.get("trip_dest_3", ""),
         ]
         filtered_route_points = [p for p in route_points if p and str(p).strip()]
-        log(f"Trip route at run: {route_label_from_points(route_points)}")
+        log(f"Trip route at run: {route_label_from_points(filtered_route_points)}")
 
         all_files: list[str] = []
-        email_location_label = current_location or "Unknown location"
 
         try:
-            if "Trip Planner" in selected_reports:
-                log("Trip Planner selected for this run")
-                ok, msg, trip_files = trip_planner(
-                    route_points=filtered_route_points,
-                    fuel_type=st.session_state.get("trip_fuel_type", "Petrol"),
-                    fuel_price=float(st.session_state.get("trip_fuel_price", 2.00)),
-                )
-                log(msg)
-                if ok and trip_files:
-                    all_files.extend(trip_files)
-                    append_usage_log(
-                        st.session_state.get("user_name", ""),
-                        st.session_state.get("user_email", ""),
-                        "Trip Planner",
-                        route_label_from_points(route_points),
+            for report in selected_reports:
+                if report == "Trip Planner":
+                    log("Trip Planner selected for this run")
+                    ok, msg, out_files = trip_planner(
+                        filtered_route_points,
+                        st.session_state.get("trip_fuel_type", "Petrol"),
+                        float(st.session_state.get("trip_fuel_price", 2.00)),
                     )
-                else:
-                    log("Trip Planner produced no valid PDF")
+                    log(msg)
+                    if ok and out_files:
+                        all_files.extend([f for f in out_files if valid_pdf(f)])
+                    continue
 
-            non_trip_reports = [r for r in selected_reports if r != "Trip Planner"]
-            locations = load_locations()
-
-            if non_trip_reports:
                 if not current_location:
-                    log("No main location selected for non-trip reports")
-                    st.error("Please select a main location for Surf / Sky / Weather reports.")
-                else:
-                    payload = locations.get(current_location, {})
-                    if not payload:
-                        log(f"Selected location not found in locations.json: {current_location}")
-                        st.error("Selected location was not found. Please refresh and try again.")
-                    else:
-                        lat = float(payload["lat"])
-                        lon = float(payload["lon"])
-                        email_location_label = current_location
-                        log(f"Resolved coords from locations.json: {lat}, {lon}")
+                    log(f"{report} skipped: no location selected")
+                    continue
 
-                        for report in non_trip_reports:
-                            before_count = len(all_files)
-                            log(f"Running {report}")
+                location_payload = locations.get(current_location, {})
+                lat = location_payload.get("lat")
+                lon = location_payload.get("lon")
 
-                            if report == "Surf Report":
-                                log("Starting Surf Report worker")
-                                files = run_worker("core.surf_worker", current_location, lat, lon, payload, run_dir)
-                            elif report == "Sky & Moon Report":
-                                log("Starting Sky & Moon Report worker")
-                                files = run_sky_moon_report(current_location, lat, lon, payload, run_dir)
-                            elif report == "Weather Report":
-                                log("Starting Weather Report worker")
-                                files = run_worker("core.weather_worker", current_location, lat, lon, payload, run_dir)
-                            else:
-                                files = []
+                if lat is None or lon is None:
+                    log(f"{report} skipped: invalid coordinates for {current_location}")
+                    continue
 
-                            if files:
-                                log(f"{report} completed with {len(files)} PDF file(s)")
-                                append_usage_log(
-                                    st.session_state.get("user_name", ""),
-                                    st.session_state.get("user_email", ""),
-                                    report,
-                                    current_location,
-                                )
-                            else:
-                                log(f"{report} returned no PDF file(s)")
+                log(f"Resolved coords from locations.json: {lat}, {lon}")
 
-                            all_files.extend(files)
+                if report == "Surf Report":
+                    log(f"Running Surf Report for {current_location}")
+                    out_files = run_worker("core.surf_worker", current_location, float(lat), float(lon), run_dir=run_dir)
+                    all_files.extend(out_files)
 
-                            if len(all_files) == before_count:
-                                log(f"No PDF captured for {report}")
+                elif report == "Sky & Moon Report":
+                    log(f"Running Sky & Moon Report for {current_location}")
+                    out_files = run_sky_moon_report(current_location, float(lat), float(lon), run_dir=run_dir)
+                    all_files.extend(out_files)
+
+                elif report == "Weather Report":
+                    log(f"Running Weather Report for {current_location}")
+                    out_files = run_worker("core.weather_worker", current_location, float(lat), float(lon), run_dir=run_dir)
+                    all_files.extend(out_files)
 
             unique_files: list[str] = []
-            for file_path in all_files:
-                if file_path not in unique_files and valid_pdf(file_path):
-                    unique_files.append(file_path)
+            for f in all_files:
+                if valid_pdf(f) and f not in unique_files:
+                    unique_files.append(f)
 
             st.session_state["files"] = unique_files
-            log(f"Total valid PDFs captured: {len(unique_files)}")
 
             if not unique_files:
-                log("❌ NO REPORTS GENERATED — CHECK WORKER")
-                st.error("No reports generated — see System progress below.")
+                log("No valid PDF attachments were generated.")
+                st.error("No valid PDF attachments were generated.")
+                cleanup_generated_files(unique_files, run_dir)
+                st.rerun()
+
+            email = st.session_state.get("user_email", "").strip()
+            if not email:
+                log("No email provided.")
+                st.error("No email provided.")
+                cleanup_generated_files(unique_files, run_dir)
+                st.rerun()
+
+            ok, msg = send_reports(email, selected_reports, current_location or "Trip Planner", unique_files)
+            log(msg)
+
+            if ok:
+                user_name = st.session_state.get("user_name", "").strip()
+                report_label = ", ".join(selected_reports)
+                location_label = st.session_state.get("preview_location", "Not selected")
+                append_usage_log(user_name, email, report_label, location_label)
+                st.success("Reports generated and emailed successfully.")
             else:
-                log("Sending email...")
-                ok, message = send_reports(
-                    st.session_state.get("user_email", "").strip(),
-                    selected_reports,
-                    email_location_label,
-                    unique_files,
-                )
-                log(message)
-                if ok:
-                    st.success(f"Reports sent successfully ({len(unique_files)} PDF attachments)")
-                    cleanup_generated_files(unique_files, run_dir)
-                    st.session_state["files"] = []
-                else:
-                    st.error(message)
+                st.error(msg)
 
         except Exception as exc:
-            log(f"RUN FAILED ❌ {exc}")
-            st.error(f"Run failed: {exc}")
+            log(f"REPORT FAILED ❌ {exc}")
+            st.error(f"Report run failed: {exc}")
+
         finally:
-            try:
-                if Path(run_dir).exists():
-                    shutil.rmtree(run_dir, ignore_errors=True)
-            except Exception:
-                pass
+            cleanup_generated_files(st.session_state.get("files", []), run_dir)
 
         st.rerun()
-
-    if st.session_state.get("files"):
-        st.markdown('<div class="panel-box"><div class="minor-heading">Generated files</div>', unsafe_allow_html=True)
-        for item in st.session_state["files"]:
-            st.write(item)
-        st.markdown("</div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
