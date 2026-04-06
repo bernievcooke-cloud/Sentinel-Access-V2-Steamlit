@@ -14,67 +14,110 @@ def apply_styles() -> None:
     st.markdown(
         """
         <style>
-.stApp {
-    background:
-        radial-gradient(circle at top left, rgba(53, 93, 145, 0.14) 0%, rgba(53, 93, 145, 0.00) 28%),
-        radial-gradient(circle at top right, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.00) 22%),
-        linear-gradient(180deg, #163252 0%, #1d4268 52%, #173755 100%);
-}
+        .stApp {
+            background:
+                radial-gradient(circle at top left, rgba(90, 140, 195, 0.16) 0%, rgba(90, 140, 195, 0.00) 28%),
+                radial-gradient(circle at top right, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.00) 24%),
+                linear-gradient(180deg, #183454 0%, #22486f 52%, #1b3c5d 100%);
+        }
 
-.hero-wrap {
-    background: linear-gradient(180deg, rgba(38, 64, 96, 0.96) 0%, rgba(31, 55, 84, 0.98) 100%);
-    border: 1px solid rgba(170, 200, 230, 0.24);
-}
+        .block-container {
+            max-width: 1040px;
+            padding-top: 2.2rem;
+            padding-bottom: 2rem;
+        }
 
-.section-card {
-    background: linear-gradient(180deg, rgba(34, 58, 88, 0.94) 0%, rgba(28, 49, 75, 0.98) 100%);
-    border: 1px solid rgba(170, 200, 230, 0.18);
-}
+        .hero-wrap {
+            background: linear-gradient(180deg, rgba(46, 77, 112, 0.97) 0%, rgba(39, 68, 100, 0.98) 100%);
+            border: 1px solid rgba(190, 215, 240, 0.28);
+            border-radius: 24px;
+            padding: 1.55rem 1.45rem 1.35rem 1.45rem;
+            margin-bottom: 1.05rem;
+            box-shadow:
+                0 10px 26px rgba(0, 0, 0, 0.16),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+        }
 
-.feature-card {
-    background: linear-gradient(180deg, rgba(45, 73, 108, 0.98) 0%, rgba(37, 63, 95, 0.98) 100%);
-    border: 1px solid rgba(170, 200, 230, 0.20);
-}
+        .hero-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: #f4f8ff;
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.28rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1.02rem;
+            font-weight: 600;
+            color: #d4e4f4;
+            margin-bottom: 0.85rem;
+        }
+
+        .hero-text {
+            font-size: 1rem;
+            color: #edf4fb;
+            line-height: 1.68;
+        }
+
+        .section-card {
+            background: linear-gradient(180deg, rgba(41, 70, 104, 0.96) 0%, rgba(35, 61, 91, 0.98) 100%);
+            border: 1px solid rgba(190, 215, 240, 0.22);
+            border-radius: 20px;
+            padding: 0.95rem 1rem 0.9rem 1rem;
+            margin-bottom: 0.95rem;
+            box-shadow:
+                0 8px 22px rgba(0, 0, 0, 0.14),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+        }
+
+        .section-heading {
+            font-size: 1.06rem;
+            font-weight: 800;
+            color: #f4f8ff;
+            margin-bottom: 0.2rem;
+            letter-spacing: 0.01em;
+        }
+
+        .feature-card {
+            background: linear-gradient(180deg, rgba(61, 95, 136, 0.98) 0%, rgba(51, 82, 119, 0.98) 100%);
+            border: 1px solid rgba(190, 215, 240, 0.24);
             border-radius: 18px;
             padding: 1rem 1rem 0.9rem 1rem;
             min-height: 158px;
-            box-shadow:
-                0 10px 20px rgba(0, 0, 0, 0.16),
-                0 0 18px rgba(88, 151, 255, 0.05);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
             transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
         }
 
         .feature-card:hover {
             transform: translateY(-2px);
-            border-color: rgba(155, 183, 214, 0.30);
-            box-shadow:
-                0 14px 26px rgba(0, 0, 0, 0.22),
-                0 0 24px rgba(88, 151, 255, 0.08);
+            border-color: rgba(220, 235, 250, 0.34);
+            box-shadow: 0 12px 22px rgba(0, 0, 0, 0.16);
         }
 
         .feature-title {
             font-size: 1rem;
             font-weight: 800;
-            color: #e6f0ff;
+            color: #f4f8ff;
             margin-bottom: 0.42rem;
         }
 
         .feature-text {
             font-size: 0.95rem;
-            color: #c7d9ee;
+            color: #eef5fc;
             line-height: 1.58;
         }
 
         .cta-note {
             font-size: 0.92rem;
-            color: #9bb7d6;
+            color: #d4e4f4;
             margin-top: 0.55rem;
         }
 
         .footer-note {
             text-align: center;
             font-size: 0.88rem;
-            color: #88a8cb;
+            color: #c8dbee;
             padding-top: 0.45rem;
         }
 
@@ -89,16 +132,16 @@ def apply_styles() -> None:
             padding: 0.92rem 1rem !important;
             text-decoration: none !important;
             box-shadow:
-                0 6px 16px rgba(21, 146, 81, 0.28),
-                0 0 18px rgba(31, 170, 99, 0.12);
+                0 6px 16px rgba(21, 146, 81, 0.26),
+                0 0 18px rgba(31, 170, 99, 0.10);
             transition: all 0.18s ease !important;
         }
 
         .stLinkButton > a:hover {
             transform: translateY(-1px);
             box-shadow:
-                0 10px 22px rgba(21, 146, 81, 0.34),
-                0 0 22px rgba(31, 170, 99, 0.16);
+                0 10px 22px rgba(21, 146, 81, 0.30),
+                0 0 22px rgba(31, 170, 99, 0.14);
             border-color: #19a65a !important;
         }
 
