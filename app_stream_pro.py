@@ -85,6 +85,10 @@ def default_state() -> dict[str, Any]:
         "preview_report": "Not selected",
         "preview_location": "Not selected",
         "pending_reports": [],
+        "report_surf": False,
+        "report_sky_moon": False,
+        "report_weather": False,
+        "report_trip": False,
         "selected_location": "",
         "user_name": "",
         "user_email": "",
@@ -735,6 +739,28 @@ def normalize_reports(reports: list[str]) -> list[str]:
     return deduped
 
 
+def sync_report_flags_from_pending_reports() -> None:
+    reports = set(normalize_reports(st.session_state.get("pending_reports", [])))
+    st.session_state["report_surf"] = "Surf Report" in reports
+    st.session_state["report_sky_moon"] = "Sky & Moon Report" in reports
+    st.session_state["report_weather"] = "Weather Report" in reports
+    st.session_state["report_trip"] = "Trip Planner" in reports
+
+
+def sync_pending_reports_from_flags() -> list[str]:
+    selected: list[str] = []
+    if st.session_state.get("report_surf", False):
+        selected.append("Surf Report")
+    if st.session_state.get("report_sky_moon", False):
+        selected.append("Sky & Moon Report")
+    if st.session_state.get("report_weather", False):
+        selected.append("Weather Report")
+    if st.session_state.get("report_trip", False):
+        selected.append("Trip Planner")
+    st.session_state["pending_reports"] = selected
+    return selected
+
+
 def info_box(label: str, value: str) -> None:
     st.markdown(
         f"""
@@ -774,7 +800,8 @@ def main() -> None:
         st.session_state["selected_location"] = pending_location
         st.session_state["location_after_save"] = ""
 
-    pending_reports_preview = normalize_reports(st.session_state.get("pending_reports", []))
+    sync_report_flags_from_pending_reports()
+    pending_reports_preview = sync_pending_reports_from_flags()
     trip_points_preview = [
         st.session_state.get("trip_start", ""),
         st.session_state.get("trip_dest_1", ""),
@@ -833,12 +860,16 @@ def main() -> None:
 
     with st.container():
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        st.multiselect(
-            "Select reports (required field)",
-            REPORTS,
-            key="pending_reports",
-        )
-        pending_reports_live = normalize_reports(st.session_state.get("pending_reports", []))
+        st.markdown('<div class="minor-heading">Select reports (required field)</div>', unsafe_allow_html=True)
+        report_col1, report_col2 = st.columns(2, gap="small")
+        with report_col1:
+            st.checkbox("Surf Report", key="report_surf")
+            st.checkbox("Sky & Moon Report", key="report_sky_moon")
+        with report_col2:
+            st.checkbox("Weather Report", key="report_weather")
+            st.checkbox("Trip Planner", key="report_trip")
+
+        pending_reports_live = sync_pending_reports_from_flags()
         pending_trip_mode = "Trip Planner" in pending_reports_live
         pending_standard_mode = any(
             r in pending_reports_live for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]
@@ -857,7 +888,7 @@ def main() -> None:
                 st.session_state["selected_location"] = ""
 
             st.selectbox(
-                "Select location (required field)",
+                "Select location (required field — type to search)",
                 location_options,
                 key="selected_location",
             )
@@ -928,7 +959,7 @@ def main() -> None:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.container():
+    with st.expander("Add new location", expanded=False):
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         info_box("Add new location", "Search and save new locations for reports")
         st.text_input("Location name", key="new_location_name")
@@ -963,7 +994,7 @@ def main() -> None:
                 st.session_state["show_geo_results"] = False
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.container():
+    with st.expander("System progress", expanded=False):
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         st.markdown('<div class="minor-heading">System progress</div>', unsafe_allow_html=True)
         st.text_area(
@@ -976,7 +1007,7 @@ def main() -> None:
         clear_log_clicked = st.button("Clear progress", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.container():
+    with st.expander("Admin function", expanded=False):
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         info_box("Admin function", "Usage logs and controls")
         st.text_input("Admin password", type="password", key="admin_password")
