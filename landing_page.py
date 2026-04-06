@@ -234,9 +234,8 @@ def hero_section() -> None:
             <div class="hero-subtitle">{APP_SUBTITLE}</div>
             <div class="hero-text">
                 Surf Sky Weather Trip Planner is a mobile-friendly reporting platform designed to generate
-                location-based PDF reports and deliver them directly by email.
-                Choose your report type, select your location, and launch the Sentinel system
-                for surf, sky and moon, weather and trip planning insights.
+                PDF reports and deliver them directly by email.
+                Choose your report type, select your location, and generate reports for surf, sky and moon, weather and trip planning insights.
             </div>
         </div>
         """,
