@@ -583,44 +583,62 @@ def apply_styles() -> None:
     st.markdown(
         """
         <style>
+        /* =======================================================
+           GLOBAL BACKGROUND (matches .toml)
+        ======================================================= */
         .stApp {
             background: linear-gradient(180deg, #dceaf7 0%, #eaf2fb 100%);
         }
+
         .block-container {
             max-width: 920px;
             padding-top: 2.1rem;
             padding-bottom: 1.2rem;
         }
+
+        /* =======================================================
+           TITLE CARD
+        ======================================================= */
         .title-wrap {
             background: #ffffff;
             border: 1px solid #bfd3e6;
             border-radius: 18px;
-            padding: 1.00rem 1.05rem;
+            padding: 1.05rem 1.1rem;
             margin-top: 0.35rem;
             margin-bottom: 0.85rem;
-            box-shadow: 0 2px 10px rgba(23, 50, 77, 0.06);
+            box-shadow: 0 4px 16px rgba(23, 50, 77, 0.08);
         }
+
         .title-main {
-            font-size: 1.9rem;
+            font-size: 2rem;
             font-weight: 800;
-            color: #17324d;
+            color: #17324D;
             line-height: 1.1;
         }
+
+        /* =======================================================
+           MAIN PANELS
+        ======================================================= */
         .panel-box {
             background: #ffffff;
             border: 1px solid #bfd3e6;
             border-radius: 16px;
-            padding: 0.85rem 0.9rem 0.75rem 0.9rem;
-            margin-bottom: 0.8rem;
-            box-shadow: 0 2px 10px rgba(23, 50, 77, 0.06);
+            padding: 0.9rem 0.95rem 0.85rem 0.95rem;
+            margin-bottom: 0.85rem;
+            box-shadow: 0 3px 12px rgba(23, 50, 77, 0.07);
         }
+
+        /* =======================================================
+           INFO / SUMMARY BOXES
+        ======================================================= */
         .compact-box {
-            background: #ffffff;
-            border: 1px solid #bfd3e6;
+            background: #f8fbff;
+            border: 1px solid #d5e2ef;
             border-radius: 14px;
             padding: 0.55rem 0.75rem;
             margin-bottom: 0.55rem;
         }
+
         .compact-label {
             font-size: 0.72rem;
             font-weight: 800;
@@ -629,27 +647,88 @@ def apply_styles() -> None:
             color: #4b6785;
             margin-bottom: 0.15rem;
         }
+
         .compact-value {
-            font-size: 0.94rem;
+            font-size: 0.96rem;
             font-weight: 800;
-            color: #17324d;
+            color: #17324D;
             line-height: 1.2;
         }
+
+        /* =======================================================
+           SECTION HEADINGS
+        ======================================================= */
         .minor-heading {
-            font-size: 0.9rem;
+            font-size: 0.92rem;
             font-weight: 800;
             color: #284866;
             margin: 0.05rem 0 0.3rem 0;
         }
-        .green-ready button {
-            background: linear-gradient(135deg, #1faa63, #159251) !important;
-            color: white !important;
-            border: 1px solid #14874b !important;
+
+        /* =======================================================
+           INPUT FIELDS (fix readability issues)
+        ======================================================= */
+        input, textarea, .stTextInput input, .stTextArea textarea {
+            background-color: #ffffff !important;
+            color: #17324D !important;
         }
+
+        label {
+            color: #17324D !important;
+            font-weight: 600 !important;
+        }
+
+        /* =======================================================
+           DROPDOWNS (important fix)
+        ======================================================= */
+        div[data-baseweb="select"] > div {
+            background-color: #ffffff !important;
+            color: #17324D !important;
+        }
+
+        /* =======================================================
+           BUTTONS (match primaryColor)
+        ======================================================= */
         .stButton button {
             height: 2.6rem;
             border-radius: 12px !important;
             font-weight: 800 !important;
+            background: linear-gradient(135deg, #1FAA63, #159251);
+            color: white;
+            border: 1px solid #14874b;
+        }
+
+        .stButton button:hover {
+            border-color: #1aa85c;
+            box-shadow: 0 4px 14px rgba(31, 170, 99, 0.18);
+        }
+
+        /* =======================================================
+           READY STATE (Generate button turns green)
+        ======================================================= */
+        .green-ready button {
+            background: linear-gradient(135deg, #1FAA63, #159251) !important;
+            color: white !important;
+            border: 1px solid #14874b !important;
+            box-shadow: 0 4px 14px rgba(31, 170, 99, 0.18);
+        }
+
+        /* =======================================================
+           TEXT AREA (System Progress)
+        ======================================================= */
+        textarea {
+            background-color: #ffffff !important;
+            color: #17324D !important;
+            border-radius: 12px !important;
+        }
+
+        /* =======================================================
+           SMALL MOBILE TWEAK
+        ======================================================= */
+        @media (max-width: 768px) {
+            .title-main {
+                font-size: 1.6rem;
+            }
         }
         </style>
         """,
