@@ -663,6 +663,41 @@ def apply_styles() -> None:
             margin-top: 0.5rem;
         }
 
+        .status-card {
+            border-radius: 14px;
+            padding: 0.85rem 0.95rem;
+            margin: 0.45rem 0 0.55rem 0;
+            border: 1px solid #c7d6e6;
+            background: #f8fbff;
+            color: #17324D;
+            box-shadow: 0 2px 8px rgba(23, 50, 77, 0.05);
+        }
+
+        .status-card strong {
+            display: block;
+            margin-bottom: 0.3rem;
+            color: #17324D;
+        }
+
+        .status-card ul {
+            margin: 0.25rem 0 0 1.1rem;
+            padding: 0;
+        }
+
+        .status-card li {
+            margin: 0.15rem 0;
+        }
+
+        .status-ready {
+            background: #eefaf3;
+            border-color: #9dd3b1;
+        }
+
+        .status-warning {
+            background: #fff8ec;
+            border-color: #e8c98e;
+        }
+
         label, p, div {
             color: #17324D;
         }
@@ -778,6 +813,51 @@ def info_box(label: str, value: str) -> None:
     )
 
 
+def validation_messages(selected_reports: list[str], selected_location: str, trip_points: list[str]) -> list[str]:
+    messages: list[str] = []
+
+    if not st.session_state.get("user_name", "").strip():
+        messages.append("Enter your name.")
+
+    if not st.session_state.get("user_email", "").strip():
+        messages.append("Enter your email.")
+
+    if not selected_reports:
+        messages.append("Select at least one report type.")
+
+    needs_main_location = any(
+        r in selected_reports for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]
+    )
+    if needs_main_location and not selected_location.strip():
+        messages.append("Select a main location.")
+
+    if "Trip Planner" in selected_reports:
+        filtered_trip_points = [p for p in trip_points if p and str(p).strip()]
+        if len(filtered_trip_points) < 2:
+            messages.append("Trip Planner needs a start point and at least one destination.")
+
+    return messages
+
+
+def render_validation_box(messages: list[str], ready: bool) -> None:
+    if ready:
+        body = "<strong>Ready to generate.</strong><br>You do not need to press Enter. Your name and email are captured automatically as you type."
+        css_class = "status-ready"
+    else:
+        items = "".join(f"<li>{m}</li>" for m in messages) or "<li>Complete the required fields.</li>"
+        body = f"<strong>Please fix these items:</strong><ul>{items}</ul>"
+        css_class = "status-warning"
+
+    st.markdown(
+        f"""
+        <div class="status-card {css_class}">
+            {body}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_title() -> None:
     st.markdown(
         f"""
@@ -827,6 +907,11 @@ def main() -> None:
     )
     trip_ready = bool(not has_trip_selected or len(trip_route_preview) >= 2)
     form_ready = bool(normal_ready and trip_ready)
+    validation_items = validation_messages(
+        pending_reports_preview,
+        st.session_state.get("selected_location", ""),
+        trip_points_preview,
+    )
 
     current_signature = json.dumps(
         {
@@ -934,34 +1019,23 @@ def main() -> None:
 
     with st.container():
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
-        btn_col1, btn_col2 = st.columns([1, 1], gap="small")
 
-        with btn_col1:
-            refresh_clicked = st.button("Refresh Page", use_container_width=True)
+        if can_generate:
+            st.markdown('<div class="green-ready">', unsafe_allow_html=True)
+        generate_clicked = st.button(
+            "Generate Reports",
+            use_container_width=True,
+            disabled=not can_generate,
+        )
+        if can_generate:
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        with btn_col2:
-            if can_generate:
-                st.markdown('<div class="green-ready">', unsafe_allow_html=True)
-            generate_clicked = st.button(
-                "Generate Reports",
-                use_container_width=True,
-                disabled=not can_generate,
-            )
-            if can_generate:
-                st.markdown("</div>", unsafe_allow_html=True)
+        render_validation_box(validation_items, can_generate)
 
-        if not form_ready:
-            st.markdown(
-                '<div class="button-note">Complete all required fields.</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                '<div class="button-note">Selections are ready. Press <b>Generate Reports</b> to run.</div>',
-                unsafe_allow_html=True,
-            )
+        refresh_clicked = st.button("Refresh Page", use_container_width=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
+
 
     with st.expander("Add new location", expanded=st.session_state.get("add_location_open", False)):
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
