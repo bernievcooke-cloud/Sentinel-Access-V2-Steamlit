@@ -102,6 +102,11 @@ def default_state() -> dict[str, Any]:
         "new_location_state": "VIC",
         "admin_password": "",
         "admin_unlocked": False,
+        "add_location_open": False,
+        "system_progress_open": False,
+        "admin_open": False,
+        "location_message": "",
+        "location_message_type": "info",
     }
 
 
@@ -800,7 +805,6 @@ def main() -> None:
         st.session_state["selected_location"] = pending_location
         st.session_state["location_after_save"] = ""
 
-    sync_report_flags_from_pending_reports()
     pending_reports_preview = sync_pending_reports_from_flags()
     trip_points_preview = [
         st.session_state.get("trip_start", ""),
@@ -959,9 +963,20 @@ def main() -> None:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.expander("Add new location", expanded=False):
+    with st.expander("Add new location", expanded=st.session_state.get("add_location_open", False)):
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         info_box("Add new location", "Search and save new locations for reports")
+        if st.session_state.get("location_message"):
+            msg = st.session_state.get("location_message", "")
+            msg_type = st.session_state.get("location_message_type", "info")
+            if msg_type == "success":
+                st.success(msg)
+            elif msg_type == "warning":
+                st.warning(msg)
+            elif msg_type == "error":
+                st.error(msg)
+            else:
+                st.info(msg)
         st.text_input("Location name", key="new_location_name")
         st.selectbox(
             "State (required field)",
@@ -994,7 +1009,7 @@ def main() -> None:
                 st.session_state["show_geo_results"] = False
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.expander("System progress", expanded=False):
+    with st.expander("System progress", expanded=st.session_state.get("system_progress_open", False)):
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         st.markdown('<div class="minor-heading">System progress</div>', unsafe_allow_html=True)
         st.text_area(
@@ -1007,7 +1022,7 @@ def main() -> None:
         clear_log_clicked = st.button("Clear progress", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.expander("Admin function", expanded=False):
+    with st.expander("Admin function", expanded=st.session_state.get("admin_open", False)):
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         info_box("Admin function", "Usage logs and controls")
         st.text_input("Admin password", type="password", key="admin_password")
@@ -1035,6 +1050,9 @@ def main() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     if search_location_clicked:
+        st.session_state["add_location_open"] = True
+        st.session_state["location_message"] = ""
+        st.session_state["location_message_type"] = "info"
         log("Location search started")
         st.session_state["geo_results"] = geocode_location(
             st.session_state.get("new_location_name", ""),
@@ -1048,18 +1066,23 @@ def main() -> None:
             ]
             st.session_state["geo_choice"] = option_labels[0] if option_labels else ""
             st.session_state["show_geo_results"] = True
+            st.session_state["location_message"] = f"{len(geo_results)} match(es) found. Choose one, then save it."
+            st.session_state["location_message_type"] = "success"
             log("Location search complete: matches ready for selection")
         else:
             st.session_state["geo_choice"] = ""
             st.session_state["show_geo_results"] = False
-            st.warning("No matches found.")
+            st.session_state["location_message"] = "No matches found. Try a different spelling or state."
+            st.session_state["location_message_type"] = "warning"
             log("Location search complete: no matches found")
         st.rerun()
 
     if save_location_clicked:
+        st.session_state["add_location_open"] = True
         geo_results = st.session_state.get("geo_results", [])
         if not geo_results:
-            st.warning("Search first, then choose a match to save.")
+            st.session_state["location_message"] = "Search first, then choose a match to save."
+            st.session_state["location_message_type"] = "warning"
             log("Save location blocked: no search results available")
         else:
             option_labels = [
@@ -1068,7 +1091,8 @@ def main() -> None:
             ]
             selected_match = st.session_state.get("geo_choice", "")
             if selected_match not in option_labels:
-                st.warning("Please choose a match to save.")
+                st.session_state["location_message"] = "Please choose a match to save."
+                st.session_state["location_message_type"] = "warning"
                 log("Save location blocked: no valid match selected")
             else:
                 idx = option_labels.index(selected_match)
@@ -1084,6 +1108,8 @@ def main() -> None:
                 st.session_state["geo_choice"] = ""
                 st.session_state["show_geo_results"] = False
                 st.session_state["selection_message"] = f"Location saved: {chosen['name']}"
+                st.session_state["location_message"] = f"Location saved: {chosen['name']}"
+                st.session_state["location_message_type"] = "success"
                 log(f"Location saved: {chosen['name']} ({chosen['state']})")
         st.rerun()
 
@@ -1091,10 +1117,12 @@ def main() -> None:
         st.info(st.session_state["selection_message"])
 
     if clear_log_clicked:
+        st.session_state["system_progress_open"] = True
         st.session_state["log"] = f"[{now_ts()}] SYSTEM READY"
         st.rerun()
 
     if unlock_admin_clicked:
+        st.session_state["admin_open"] = True
         if st.session_state.get("admin_password", "") == get_admin_password():
             st.session_state["admin_unlocked"] = True
             log("Admin unlocked")
@@ -1104,6 +1132,7 @@ def main() -> None:
         st.rerun()
 
     if lock_admin_clicked:
+        st.session_state["admin_open"] = True
         st.session_state["admin_unlocked"] = False
         st.session_state["admin_password"] = ""
         log("Admin locked")
@@ -1114,6 +1143,7 @@ def main() -> None:
         st.rerun()
 
     if generate_clicked:
+        st.session_state["system_progress_open"] = True
         st.session_state["files"] = []
         st.session_state["log"] = ""
         log("RUN START ✅")
