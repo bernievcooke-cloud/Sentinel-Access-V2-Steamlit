@@ -607,22 +607,14 @@ def apply_styles() -> None:
             line-height: 1.1;
         }
 
-        .panel-box {
-            background: #ffffff;
-            border: 1px solid #bfd3e6;
-            border-radius: 16px;
-            padding: 0.95rem 1rem 0.9rem 1rem;
-            margin-bottom: 0.9rem;
-            box-shadow: 0 3px 12px rgba(23, 50, 77, 0.07);
-        }
-
+        .panel-box,
         .button-row {
-            background: #ffffff;
-            border: 1px solid #bfd3e6;
-            border-radius: 16px;
-            padding: 0.95rem 1rem 0.9rem 1rem;
-            margin-bottom: 0.9rem;
-            box-shadow: 0 3px 12px rgba(23, 50, 77, 0.07);
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            margin-bottom: 0.75rem;
+            box-shadow: none;
         }
 
         .compact-box {
@@ -678,10 +670,12 @@ def apply_styles() -> None:
 
         .stTextArea textarea {
             font-family: Consolas, "Courier New", monospace !important;
-            font-size: 0.88rem !important;
+            font-size: 0.90rem !important;
             line-height: 1.45 !important;
-            border: 1px solid #cbdceb !important;
+            border: 1px solid #b8cada !important;
             box-shadow: inset 0 1px 2px rgba(23, 50, 77, 0.04) !important;
+            color: #0b1f33 !important;
+            font-weight: 700 !important;
         }
 
         .stButton button {
@@ -819,23 +813,13 @@ def main() -> None:
         sort_keys=True,
     )
 
-    confirmed_signature = st.session_state.get("confirmed_signature", "")
-    confirmed_reports = normalize_reports(st.session_state.get("confirmed_reports", []))
-    confirmed_match = bool(
-        confirmed_signature
-        and confirmed_signature == current_signature
-        and confirmed_reports
-    )
-
-    can_confirm = form_ready
-    can_generate = bool(form_ready and confirmed_match)
+    can_generate = form_ready
 
     render_title()
 
     search_location_clicked = False
     save_location_clicked = False
     refresh_clicked = False
-    confirm_clicked = False
     generate_clicked = False
     clear_log_clicked = False
     unlock_admin_clicked = False
@@ -843,14 +827,14 @@ def main() -> None:
 
     with st.container():
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-        st.text_input("Name", key="user_name")
-        st.text_input("Email", key="user_email")
+        st.text_input("Name (required field)", key="user_name")
+        st.text_input("User email (required field)", key="user_email")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with st.container():
         st.markdown('<div class="panel-box">', unsafe_allow_html=True)
         st.multiselect(
-            "Select reports",
+            "Select reports (required field)",
             REPORTS,
             key="pending_reports",
         )
@@ -873,7 +857,7 @@ def main() -> None:
                 st.session_state["selected_location"] = ""
 
             st.selectbox(
-                "Select location",
+                "Select location (required field)",
                 location_options,
                 key="selected_location",
             )
@@ -883,13 +867,13 @@ def main() -> None:
         if pending_trip_mode:
             trip_location_options = [""] + location_names if location_names else [""]
             st.markdown('<div class="minor-heading">Trip settings</div>', unsafe_allow_html=True)
-            st.selectbox("Start location", trip_location_options, key="trip_start")
-            st.selectbox("Destination 1", trip_location_options, key="trip_dest_1")
-            st.selectbox("Destination 2", trip_location_options, key="trip_dest_2")
-            st.selectbox("Destination 3", trip_location_options, key="trip_dest_3")
-            st.selectbox("Fuel type", ["Petrol", "Diesel"], key="trip_fuel_type")
+            st.selectbox("Start location (required field)", trip_location_options, key="trip_start")
+            st.selectbox("Destination 1 (required field)", trip_location_options, key="trip_dest_1")
+            st.selectbox("Destination 2 (required field)", trip_location_options, key="trip_dest_2")
+            st.selectbox("Destination 3 (required field)", trip_location_options, key="trip_dest_3")
+            st.selectbox("Fuel type (required field)", ["Petrol", "Diesel"], key="trip_fuel_type")
             st.selectbox(
-                "Fuel price per litre",
+                "Fuel price per litre (required field)",
                 [round(x / 100, 2) for x in range(140, 401, 5)],
                 key="trip_fuel_price",
             )
@@ -915,19 +899,12 @@ def main() -> None:
 
     with st.container():
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
-        btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="small")
+        btn_col1, btn_col2 = st.columns([1, 1], gap="small")
 
         with btn_col1:
             refresh_clicked = st.button("Refresh Page", use_container_width=True)
 
         with btn_col2:
-            confirm_clicked = st.button(
-                "Confirm Selection",
-                use_container_width=True,
-                disabled=not can_confirm,
-            )
-
-        with btn_col3:
             if can_generate:
                 st.markdown('<div class="green-ready">', unsafe_allow_html=True)
             generate_clicked = st.button(
@@ -940,17 +917,12 @@ def main() -> None:
 
         if not form_ready:
             st.markdown(
-                '<div class="button-note">Complete all required fields before confirming.</div>',
-                unsafe_allow_html=True,
-            )
-        elif form_ready and not confirmed_match:
-            st.markdown(
-                '<div class="button-note">Selections are ready. Press <b>Confirm Selection</b> to activate Generate Reports.</div>',
+                '<div class="button-note">Complete all required fields.</div>',
                 unsafe_allow_html=True,
             )
         else:
             st.markdown(
-                '<div class="button-note">Selections confirmed. Generate Reports is ready.</div>',
+                '<div class="button-note">Selections are ready. Press <b>Generate Reports</b> to run.</div>',
                 unsafe_allow_html=True,
             )
 
@@ -961,7 +933,7 @@ def main() -> None:
         info_box("Add new location", "Search and save new locations for reports")
         st.text_input("Location name", key="new_location_name")
         st.selectbox(
-            "State",
+            "State (required field)",
             list(STATE_MAP.keys()),
             key="new_location_state",
         )
@@ -983,7 +955,7 @@ def main() -> None:
                 if option_labels and current_choice not in option_labels:
                     st.session_state["geo_choice"] = option_labels[0]
                 st.selectbox(
-                    "Select match",
+                    "Select match (required field)",
                     option_labels,
                     key="geo_choice",
                 )
@@ -1110,35 +1082,6 @@ def main() -> None:
         reset_app_state()
         st.rerun()
 
-    if confirm_clicked:
-        reports_to_confirm = normalize_reports(st.session_state.get("pending_reports", []))
-        st.session_state["confirmed_reports"] = list(reports_to_confirm)
-        st.session_state["confirmed_signature"] = current_signature
-
-        if reports_to_confirm:
-            st.session_state["selection_message"] = f"Confirmed: {', '.join(reports_to_confirm)}"
-            log(f"Confirmed reports: {', '.join(reports_to_confirm)}")
-
-            if any(r in reports_to_confirm for r in ["Surf Report", "Sky & Moon Report", "Weather Report"]):
-                log(f"Confirmed main location: {st.session_state.get('selected_location', '').strip() or 'None'}")
-
-            if "Trip Planner" in reports_to_confirm:
-                trip_points_confirm = [
-                    st.session_state.get("trip_start", ""),
-                    st.session_state.get("trip_dest_1", ""),
-                    st.session_state.get("trip_dest_2", ""),
-                    st.session_state.get("trip_dest_3", ""),
-                ]
-                log(f"Confirmed trip route: {route_label_from_points(trip_points_confirm)}")
-                log(f"Confirmed fuel type: {st.session_state.get('trip_fuel_type', 'Petrol')}")
-                log(f"Confirmed fuel price: ${float(st.session_state.get('trip_fuel_price', 2.00)):.2f}/L")
-        else:
-            st.session_state["selection_message"] = "No reports selected."
-            st.session_state["confirmed_signature"] = ""
-            log("Confirm selection pressed with no reports selected")
-
-        st.rerun()
-
     if generate_clicked:
         st.session_state["files"] = []
         st.session_state["log"] = ""
@@ -1147,8 +1090,8 @@ def main() -> None:
         run_dir = make_run_dir()
         log(f"Temporary run folder: {run_dir}")
 
-        selected_reports = normalize_reports(st.session_state.get("confirmed_reports", []))
-        log(f"Confirmed run set: {', '.join(selected_reports) if selected_reports else 'None'}")
+        selected_reports = normalize_reports(st.session_state.get("pending_reports", []))
+        log(f"Selected run set: {', '.join(selected_reports) if selected_reports else 'None'}")
 
         current_location = st.session_state.get("selected_location", "").strip()
         log(f"Main report location: {current_location or 'None'}")
