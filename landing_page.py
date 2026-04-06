@@ -6,7 +6,7 @@ import streamlit as st
 # -------------------------------------------------
 SENTINEL_APP_URL = "https://sentinel-access-v2-steamlit-3m8hjtrpznzu3skhp3inqh.streamlit.app/"
 
-APP_TITLE = "Surf - Sky - Weather - Trp Planner"
+APP_TITLE = "Surf • Sky • Weather • Trip Planner"
 APP_SUBTITLE = "Professional report delivery dashboard"
 
 
@@ -15,114 +15,169 @@ def apply_styles() -> None:
         """
         <style>
         .stApp {
-            background: linear-gradient(180deg, #dceaf7 0%, #eaf2fb 100%);
+            background:
+                radial-gradient(circle at top left, rgba(53, 93, 145, 0.18) 0%, rgba(53, 93, 145, 0.00) 28%),
+                radial-gradient(circle at top right, rgba(39, 174, 96, 0.10) 0%, rgba(39, 174, 96, 0.00) 22%),
+                linear-gradient(180deg, #0b1e34 0%, #102844 52%, #0e2138 100%);
         }
 
         .block-container {
-            max-width: 980px;
+            max-width: 1040px;
             padding-top: 2.2rem;
             padding-bottom: 2rem;
         }
 
         .hero-wrap {
-            background: #ffffff;
-            border: 1px solid #bfd3e6;
-            border-radius: 22px;
-            padding: 1.4rem 1.3rem 1.25rem 1.3rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 16px rgba(23, 50, 77, 0.08);
+            background: linear-gradient(180deg, rgba(22, 42, 68, 0.96) 0%, rgba(18, 36, 58, 0.98) 100%);
+            border: 1px solid rgba(145, 182, 219, 0.22);
+            border-radius: 24px;
+            padding: 1.55rem 1.45rem 1.35rem 1.45rem;
+            margin-bottom: 1.05rem;
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.22),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+                0 0 26px rgba(98, 164, 255, 0.08);
         }
 
         .hero-title {
-            font-size: 2.1rem;
+            font-size: 2.25rem;
             font-weight: 800;
-            color: #17324d;
+            color: #e6f0ff;
             line-height: 1.05;
-            margin-bottom: 0.25rem;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.28rem;
         }
 
         .hero-subtitle {
             font-size: 1.02rem;
             font-weight: 600;
-            color: #4b6785;
-            margin-bottom: 0.8rem;
+            color: #9bb7d6;
+            margin-bottom: 0.85rem;
         }
 
         .hero-text {
             font-size: 1rem;
-            color: #284866;
-            line-height: 1.6;
+            color: #c7d9ee;
+            line-height: 1.68;
         }
 
         .section-card {
-            background: #ffffff;
-            border: 1px solid #bfd3e6;
-            border-radius: 18px;
-            padding: 1rem 1rem 0.9rem 1rem;
-            margin-bottom: 0.9rem;
-            box-shadow: 0 2px 10px rgba(23, 50, 77, 0.06);
+            background: linear-gradient(180deg, rgba(20, 38, 61, 0.94) 0%, rgba(17, 33, 53, 0.98) 100%);
+            border: 1px solid rgba(145, 182, 219, 0.18);
+            border-radius: 20px;
+            padding: 0.95rem 1rem 0.9rem 1rem;
+            margin-bottom: 0.95rem;
+            box-shadow:
+                0 8px 24px rgba(0, 0, 0, 0.18),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset;
         }
 
         .section-heading {
-            font-size: 1.05rem;
+            font-size: 1.06rem;
             font-weight: 800;
-            color: #17324d;
-            margin-bottom: 0.65rem;
+            color: #e6f0ff;
+            margin-bottom: 0.2rem;
+            letter-spacing: 0.01em;
         }
 
         .feature-card {
-            background: #f8fbff;
-            border: 1px solid #d5e2ef;
-            border-radius: 16px;
-            padding: 0.9rem 0.9rem 0.8rem 0.9rem;
-            min-height: 150px;
+            background: linear-gradient(180deg, rgba(27, 49, 78, 0.98) 0%, rgba(22, 42, 68, 0.98) 100%);
+            border: 1px solid rgba(155, 183, 214, 0.18);
+            border-radius: 18px;
+            padding: 1rem 1rem 0.9rem 1rem;
+            min-height: 158px;
+            box-shadow:
+                0 10px 20px rgba(0, 0, 0, 0.16),
+                0 0 18px rgba(88, 151, 255, 0.05);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(155, 183, 214, 0.30);
+            box-shadow:
+                0 14px 26px rgba(0, 0, 0, 0.22),
+                0 0 24px rgba(88, 151, 255, 0.08);
         }
 
         .feature-title {
-            font-size: 0.98rem;
+            font-size: 1rem;
             font-weight: 800;
-            color: #17324d;
-            margin-bottom: 0.4rem;
+            color: #e6f0ff;
+            margin-bottom: 0.42rem;
         }
 
         .feature-text {
-            font-size: 0.94rem;
-            color: #284866;
-            line-height: 1.5;
+            font-size: 0.95rem;
+            color: #c7d9ee;
+            line-height: 1.58;
         }
 
         .cta-note {
             font-size: 0.92rem;
-            color: #4b6785;
-            margin-top: 0.45rem;
+            color: #9bb7d6;
+            margin-top: 0.55rem;
         }
 
         .footer-note {
             text-align: center;
             font-size: 0.88rem;
-            color: #5d7690;
-            padding-top: 0.4rem;
+            color: #88a8cb;
+            padding-top: 0.45rem;
         }
 
         .stLinkButton > a {
             background: linear-gradient(135deg, #1faa63, #159251) !important;
-            color: white !important;
+            color: #ffffff !important;
             border: 1px solid #14874b !important;
-            border-radius: 14px !important;
+            border-radius: 15px !important;
             font-weight: 800 !important;
             width: 100% !important;
             text-align: center !important;
-            padding: 0.8rem 1rem !important;
+            padding: 0.92rem 1rem !important;
             text-decoration: none !important;
-            box-shadow: 0 3px 10px rgba(21, 146, 81, 0.18);
+            box-shadow:
+                0 6px 16px rgba(21, 146, 81, 0.28),
+                0 0 18px rgba(31, 170, 99, 0.12);
+            transition: all 0.18s ease !important;
         }
 
-        @media (max-width: 640px) {
-            .hero-title {
-                font-size: 1.7rem;
+        .stLinkButton > a:hover {
+            transform: translateY(-1px);
+            box-shadow:
+                0 10px 22px rgba(21, 146, 81, 0.34),
+                0 0 22px rgba(31, 170, 99, 0.16);
+            border-color: #19a65a !important;
+        }
+
+        .stLinkButton > a:active {
+            transform: translateY(0px);
+        }
+
+        div[data-testid="stHorizontalBlock"] > div {
+            gap: 0.9rem !important;
+        }
+
+        @media (max-width: 768px) {
+            .block-container {
+                padding-top: 1.4rem;
             }
+
+            .hero-wrap {
+                padding: 1.2rem 1rem 1.1rem 1rem;
+                border-radius: 20px;
+            }
+
+            .hero-title {
+                font-size: 1.78rem;
+            }
+
             .hero-subtitle {
                 font-size: 0.96rem;
+            }
+
+            .feature-card {
+                min-height: auto;
             }
         }
         </style>
@@ -138,10 +193,10 @@ def hero_section() -> None:
             <div class="hero-title">{APP_TITLE}</div>
             <div class="hero-subtitle">{APP_SUBTITLE}</div>
             <div class="hero-text">
-                "Surf - Sky - Weather - Trip Planner" is a mobile-friendly reporting platform designed to generate
-                location-based reports and deliver them va your email as a PDF.
-                Select your report type, choose your location, and run the report system
-                to generate your Sentinel outputs.
+                Sentinel Access is a mobile-friendly reporting platform designed to generate
+                location-based PDF reports and deliver them directly by email.
+                Choose your report type, select your location, and launch the Sentinel system
+                for surf, sky, weather, moon, and trip planning insights.
             </div>
         </div>
         """,
@@ -167,22 +222,23 @@ def description_section() -> None:
             <div class="feature-card">
                 <div class="feature-title">Surf Report</div>
                 <div class="feature-text">
-                    Provides a daily chart, a next best day chart and a weekly chart,
-                    including wind, swell and tides.
+                    Daily surf conditions, next best day guidance, and weekly outlooks
+                    covering swell, wind, and tide intelligence.
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        st.markdown("<div style='height:0.8rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:0.85rem;'></div>", unsafe_allow_html=True)
 
         st.markdown(
             """
             <div class="feature-card">
                 <div class="feature-title">Weather Report</div>
                 <div class="feature-text">
-                    Provides a daily and weekly forecast chart together with weather warnings.
+                    Daily and weekly forecast views with temperature, conditions,
+                    and weather alert summaries for your selected location.
                 </div>
             </div>
             """,
@@ -193,26 +249,25 @@ def description_section() -> None:
         st.markdown(
             """
             <div class="feature-card">
-                <div class="feature-title">Sky Report & Moon Events</div>
+                <div class="feature-title">Sky & Moon Report</div>
                 <div class="feature-text">
-                    Designed for photographers, providing daily and nightly sky conditions,
-                    next best viewing day, weekly outlook, moon phase and azimuth,
-                    moon events, and cloud or haze cover.
+                    Built for photographers and night-sky viewing, including day and night
+                    clarity, best viewing windows, moon phase tracking, and lunar events.
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        st.markdown("<div style='height:0.8rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:0.85rem;'></div>", unsafe_allow_html=True)
 
         st.markdown(
             """
             <div class="feature-card">
                 <div class="feature-title">Trip Planner</div>
                 <div class="feature-text">
-                    Provides a chart with the start location and next three destinations,
-                    together with a fuel and cost calculator.
+                    Route planning with a start point, multiple destinations,
+                    fuel usage estimates, and trip cost guidance.
                 </div>
             </div>
             """,
@@ -231,10 +286,11 @@ def cta_section() -> None:
     )
 
     st.link_button("Run Report", SENTINEL_APP_URL, use_container_width=True)
+
     st.markdown(
         """
         <div class="cta-note">
-            Tap the button above to open the Sentinel report system.
+            Open the Sentinel report system to generate and email your selected reports.
         </div>
         """,
         unsafe_allow_html=True,
@@ -245,7 +301,7 @@ def footer() -> None:
     st.markdown(
         """
         <div class="footer-note">
-            Surf - Sky - Weather - Trip Planner • Report generation for surf, weather, sky, moon and trip planning
+            Sentinel Access • Surf • Sky • Weather • Moon • Trip Planning
         </div>
         """,
         unsafe_allow_html=True,
@@ -253,13 +309,17 @@ def footer() -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title=APP_TITLE, layout="centered")
+    st.set_page_config(
+        page_title=APP_TITLE,
+        layout="centered",
+        initial_sidebar_state="collapsed",
+    )
     apply_styles()
     hero_section()
     description_section()
-    st.markdown("<div style='height:0.4rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:0.45rem;'></div>", unsafe_allow_html=True)
     cta_section()
-    st.markdown("<div style='height:0.7rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:0.75rem;'></div>", unsafe_allow_html=True)
     footer()
 
 
